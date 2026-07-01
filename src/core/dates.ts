@@ -89,6 +89,11 @@ export function resolveDate(input: string, reference = nowInRome()): string {
 export function resolveTime(input: string): string {
   const lower = input.trim().toLowerCase();
 
+  const mezza = lower.match(/(\d{1,2})\s+e\s+mezza/);
+  if (mezza?.[1]) {
+    return formatTimeRome(Number(mezza[1]), 30);
+  }
+
   const hhmm = lower.match(/(\d{1,2})[:.](\d{2})/);
   if (hhmm) {
     return formatTimeRome(Number(hhmm[1]), Number(hhmm[2]));

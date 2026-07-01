@@ -1,40 +1,9 @@
 import { Hono } from "hono";
 import type { Db } from "../db/index.js";
-import { processMessage } from "../core/processor.js";
-import {
-  getWhatsAppConfig,
-  normalizeWhatsAppPhone,
-} from "../messaging/whatsapp-config.js";
+import { processInbound } from "../core/processor.js";
+import { getWhatsAppConfig } from "../messaging/whatsapp-config.js";
 import { createWhatsAppSender } from "../messaging/whatsapp-sender.js";
-
-interface WhatsAppTextMessage {
-  from: string;
-  id: string;
-  type: string;
-  text?: { body: string };
-}
-
-function extractMessages(body: unknown): WhatsAppTextMessage[] {
-  const messages: WhatsAppTextMessage[] = [];
-  const payload = body as {
-    entry?: Array<{
-      changes?: Array<{
-        value?: { messages?: WhatsAppTextMessage[] };
-      }>;
-    }>;
-  };
-
-  for (const entry of payload.entry ?? []) {
-    for (const change of entry.changes ?? []) {
-      for (const msg of change.value?.messages ?? []) {
-        if (msg.type === "text" && msg.text?.body) {
-          messages.push(msg);
-        }
-      }
-    }
-  }
-  return messages;
-}
+import { extractInboundFromWhatsApp } from "../messaging/whatsapp-inbound.js";
 
 export function createWhatsAppRoutes(db: Db) {
   const app = new Hono();
@@ -69,19 +38,16 @@ export function createWhatsAppRoutes(db: Db) {
     }
 
     const body = await c.req.json();
-    const messages = extractMessages(body);
+    const messages = extractInboundFromWhatsApp(body);
 
-    for (const msg of messages) {
-      const barberPhone = normalizeWhatsAppPhone(msg.from);
-      const text = msg.text!.body;
+    for (const inbound of messages) {
       try {
-        await processMessage(db, sender, barberPhone, text);
+        await processInbound(db, sender, inbound);
       } catch (err) {
-        console.error("[whatsapp] processMessage error:", err);
-        await sender.send(
-          barberPhone,
-          { text: "Qualcosa è andato storto. Riprova tra poco." },
-        );
+        console.error("[whatsapp] processInbound error:", err);
+        await sender.send(inbound.barberPhone, {
+          text: "Qualcosa è andato storto. Riprova tra poco.",
+        });
       }
     }
 

@@ -1,65 +1,50 @@
 /**
- * Test 30 frasi reali che un barbiere potrebbe scrivere.
+ * Test frasi barbiere da data/barber-phrases.json
  * Esegui: npm run test:phrases
  */
+import { readFileSync } from "node:fs";
 import { parseNaturalLanguage, parseWithRules } from "../src/llm/parser.js";
+import { validateAndNormalizeAction } from "../src/services/validation.js";
 
-const PHRASES = [
-  "Luca domani alle 15",
-  "Luca domani alle tre",
-  "Marco venerdì alle 11:30",
-  "Domani alle 16 Andrea",
-  "Sposta Marco a lunedì",
-  "Sposta Luca a venerdì alle 10",
-  "Gianni ha annullato",
-  "Marco non viene più",
-  "Marco fatto",
-  "agenda oggi",
-  "agenda domani",
-  "Nuovo cliente Simone +393339991111",
-  "Ricordami Luca tra 6 settimane",
-  "Metti luca alle 5",
-  "Metti Andrea quando puoi",
-  "ciao come stai",
-  "quanto ho guadagnato oggi",
-  "OK manda tutto",
-  "Pippo domani alle 14",
-  "Luca domani alle 15:30",
-  "Domani sono pieno sposta tutto",
-  "confermo", // risposta contesto — il parser non la gestisce
-  "annulla", // risposta contesto
-  "forse", // risposta contesto
-  "Marco dopodomani alle 9",
-  "Segna Andrea per sabato alle 18",
-  "Cancella appuntamento di Gianni",
-  "Mostrami l'agenda",
-  "Buongiorno",
-  "Luca ha spostato a martedì alle 17",
-];
+interface PhraseEntry {
+  text: string;
+  expected: string;
+}
+
+const phrases: PhraseEntry[] = JSON.parse(
+  readFileSync(new URL("../data/barber-phrases.json", import.meta.url), "utf-8"),
+);
 
 async function main() {
   const useOpenAI = Boolean(process.env.OPENAI_API_KEY);
-  console.log(`Parser: ${useOpenAI ? "OpenAI + validation" : "rules + validation"}\n`);
+  console.log(
+    `Parser: ${useOpenAI ? "OpenAI + validation" : "rules + validation"}\n`,
+  );
 
-  let ok = 0;
-  let unknown = 0;
+  let pass = 0;
+  let fail = 0;
 
-  for (const phrase of PHRASES) {
+  for (const { text, expected } of phrases) {
     const action = useOpenAI
-      ? await parseNaturalLanguage(phrase)
-      : (await import("../src/services/validation.js")).validateAndNormalizeAction(
-          parseWithRules(phrase),
-        );
-    const status = action.type === "unknown" ? "❌" : "✅";
-    if (action.type === "unknown") unknown++;
-    else ok++;
-    console.log(`${status} "${phrase}"`);
-    console.log(`   → ${action.type}${action.type === "unknown" && "reason" in action ? ` (${action.reason})` : ""}`);
+      ? await parseNaturalLanguage(text)
+      : validateAndNormalizeAction(parseWithRules(text));
+
+    const ok = action.type === expected;
+    if (ok) pass++;
+    else fail++;
+
+    console.log(`${ok ? "✅" : "❌"} "${text}"`);
+    console.log(`   atteso: ${expected} → ottenuto: ${action.type}`);
   }
 
   console.log(`\n--- Risultato ---`);
-  console.log(`Capite: ${ok}/${PHRASES.length}`);
-  console.log(`Non capite: ${unknown}/${PHRASES.length}`);
+  console.log(`OK: ${pass}/${phrases.length}`);
+  console.log(`Fail: ${fail}/${phrases.length}`);
+
+  if (fail > 0) process.exit(1);
 }
 
-main().catch(console.error);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

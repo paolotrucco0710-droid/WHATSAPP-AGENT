@@ -1,22 +1,57 @@
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, like, sql } from "drizzle-orm";
 import type { Db } from "../db/index.js";
 import { clients } from "../db/schema.js";
 
+function dedupeById<T extends { id: number }>(rows: T[]): T[] {
+  const seen = new Set<number>();
+  return rows.filter((r) => {
+    if (seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
+}
+
+/** Esatto → inizia con → contiene. Meno disambiguazioni inutili. */
 export async function findClientsByName(
   db: Db,
   barberId: number,
   name: string,
 ) {
   const trimmed = name.trim();
-  return db
+  const lower = trimmed.toLowerCase();
+
+  const exact = await db
     .select()
     .from(clients)
     .where(
       and(
         eq(clients.barberId, barberId),
-        like(clients.name, `%${trimmed}%`),
+        sql`lower(${clients.name}) = ${lower}`,
       ),
     );
+
+  if (exact.length > 0) return exact;
+
+  const startsWith = await db
+    .select()
+    .from(clients)
+    .where(
+      and(
+        eq(clients.barberId, barberId),
+        sql`lower(${clients.name}) like ${`${lower}%`}`,
+      ),
+    );
+
+  if (startsWith.length > 0) return dedupeById(startsWith);
+
+  const contains = await db
+    .select()
+    .from(clients)
+    .where(
+      and(eq(clients.barberId, barberId), like(clients.name, `%${trimmed}%`)),
+    );
+
+  return dedupeById(contains);
 }
 
 export async function findClientById(db: Db, clientId: number) {
@@ -45,7 +80,7 @@ export async function findClientByPhone(
 }
 
 export type CreateClientResult =
-  | { ok: true; client: Awaited<ReturnType<typeof findClientById>> & object }
+  | { ok: true; client: NonNullable<Awaited<ReturnType<typeof findClientById>>> }
   | { ok: false; reason: "duplicate_phone"; existingName: string };
 
 export async function createClient(

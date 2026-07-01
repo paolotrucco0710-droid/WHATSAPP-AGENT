@@ -2,9 +2,10 @@ import type { Db } from "../db/index.js";
 import type { MessageSender } from "../messaging/types.js";
 import { parseNaturalLanguage } from "../llm/parser.js";
 import { findOrCreateBarber } from "../services/barber.js";
-import { findClientsByName, findClientByPhone } from "../services/clients.js";
+import { findClientsByName, findClientByPhone, findClientById } from "../services/clients.js";
 import {
   getConversationState,
+  isConversationExpired,
   parsePendingContext,
   parseSelectionContext,
   resetConversationState,
@@ -21,6 +22,7 @@ import {
   formatAgendaMessage,
   getAgendaForDate,
 } from "../services/agenda.js";
+import type { InboundMessage } from "../messaging/inbound.js";
 import type { FlexiAction } from "../types/actions.js";
 import type {
   ClientSelectionContext,
@@ -69,26 +71,107 @@ async function reply(
   await sender.send(barberPhone, { text, waMeLink });
 }
 
+export async function processInbound(
+  db: Db,
+  sender: MessageSender,
+  inbound: InboundMessage,
+): Promise<void> {
+  const barber = await findOrCreateBarber(db, inbound.barberPhone);
+  let state = await getConversationState(db, barber.id);
+
+  if (
+    state &&
+    state.state !== "idle" &&
+    isConversationExpired(state.updatedAt)
+  ) {
+    await resetConversationState(db, barber.id);
+    state = null;
+  } else if (state?.state === "awaiting_confirmation" && inbound.text) {
+    await handleConfirmation(
+      db,
+      sender,
+      barber.id,
+      inbound.barberPhone,
+      inbound.text,
+      state.context,
+    );
+    return;
+  } else if (state?.state === "awaiting_client_selection" && inbound.text) {
+    await handleClientSelection(
+      db,
+      sender,
+      barber.id,
+      inbound.barberPhone,
+      inbound.text,
+      state.context,
+    );
+    return;
+  }
+
+  if (inbound.contact) {
+    await handleSharedContact(
+      db,
+      sender,
+      barber.id,
+      inbound.barberPhone,
+      inbound.contact,
+    );
+    return;
+  }
+
+  if (inbound.text) {
+    await handleNewMessage(
+      db,
+      sender,
+      barber.id,
+      inbound.barberPhone,
+      inbound.text,
+    );
+  }
+}
+
 export async function processMessage(
   db: Db,
   sender: MessageSender,
   barberPhone: string,
   text: string,
 ): Promise<void> {
-  const barber = await findOrCreateBarber(db, barberPhone);
-  const state = await getConversationState(db, barber.id);
+  await processInbound(db, sender, { barberPhone, text });
+}
 
-  if (state?.state === "awaiting_confirmation") {
-    await handleConfirmation(db, sender, barber.id, barberPhone, text, state.context);
+async function handleSharedContact(
+  db: Db,
+  sender: MessageSender,
+  barberId: number,
+  barberPhone: string,
+  contact: { name: string; phone: string },
+) {
+  const existing = await findClientByPhone(db, barberId, contact.phone);
+  if (existing) {
+    await reply(
+      sender,
+      barberPhone,
+      `⚠️ Questo contatto è già in rubrica come ${existing.name}.`,
+    );
     return;
   }
 
-  if (state?.state === "awaiting_client_selection") {
-    await handleClientSelection(db, sender, barber.id, barberPhone, text, state.context);
-    return;
-  }
+  const action = {
+    type: "create_client" as const,
+    clientName: contact.name,
+    phone: contact.phone,
+  };
+  const summary = [
+    "Ho ricevuto il contatto:",
+    "",
+    `• Nome: ${contact.name}`,
+    "",
+    "Confermi di aggiungerlo in rubrica?",
+  ].join("\n");
 
-  await handleNewMessage(db, sender, barber.id, barberPhone, text);
+  const pending: PendingConfirmationContext = { action, summary };
+  await setConversationState(db, barberId, "awaiting_confirmation", pending);
+  await reply(sender, barberPhone, summary);
 }
 
 async function handleConfirmation(
@@ -128,7 +211,14 @@ async function handleConfirmation(
     context.resolvedClientId,
   );
   await resetConversationState(db, barberId);
-  await reply(sender, barberPhone, result.message, result.waMeLink);
+  let message = result.message;
+  if (context.action.type === "complete_appointment" && context.resolvedClientId) {
+    const client = await findClientById(db, context.resolvedClientId);
+    if (client) {
+      message += `\n\nProssimo richiamo indicativo: tra 5 settimane.\nScrivi "Ricordami ${client.name} tra 5 settimane" per un promemoria.`;
+    }
+  }
+  await reply(sender, barberPhone, message, result.waMeLink);
 }
 
 async function handleClientSelection(

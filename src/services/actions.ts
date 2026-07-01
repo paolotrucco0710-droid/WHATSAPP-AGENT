@@ -18,6 +18,7 @@ import {
 } from "../core/dates.js";
 import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import { findScheduledAppointmentAt } from "./appointments.js";
 
 export interface ExecuteResult {
   message: string;
@@ -48,7 +49,17 @@ export async function executeAction(
             "Per aggiungere un cliente nuovo, condividimi il suo contatto WhatsApp.",
         };
       }
-      await createClient(db, barberId, action.clientName, action.phone);
+      const result = await createClient(
+        db,
+        barberId,
+        action.clientName,
+        action.phone,
+      );
+      if (!result.ok) {
+        return {
+          message: `⚠️ Questo numero è già in rubrica come ${result.existingName}. Non l'ho duplicato.`,
+        };
+      }
       return { message: `✅ Cliente ${action.clientName} aggiunto.` };
     }
 
@@ -58,6 +69,19 @@ export async function executeAction(
       }
       const date = resolveDate(action.date);
       const time = resolveTime(action.time);
+      const startsAt = toStartsAt(date, time);
+      const duplicate = await findScheduledAppointmentAt(
+        db,
+        barberId,
+        resolvedClientId,
+        startsAt,
+      );
+      if (duplicate) {
+        const client = await findClientById(db, resolvedClientId);
+        return {
+          message: `⚠️ Esiste già un appuntamento per ${client?.name ?? action.clientName} ${formatDisplayDate(date)} alle ${time}.\n\nNon l'ho duplicato.`,
+        };
+      }
       await createAppointment(db, {
         barberId,
         clientId: resolvedClientId,

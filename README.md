@@ -40,11 +40,30 @@ curl -s -X POST http://localhost:3000/dev/message \
   -d '{"barberPhone":"+393331112233","text":"Luca domani alle 15"}'
 ```
 
-Senza `OPENAI_API_KEY` usa un parser rule-based. Con la key usa OpenAI.
+Senza `OPENAI_API_KEY` usa un parser rule-based (meno preciso). Con la key usa OpenAI + validation layer.
+
+```bash
+npm run test:phrases   # test 30 frasi barbiere
+```
+
+## WhatsApp Cloud API
+
+L'adapter è pronto. Copia `.env.example` → `.env` e compila:
+
+```
+WHATSAPP_PHONE_NUMBER_ID=...
+WHATSAPP_ACCESS_TOKEN=...
+WHATSAPP_VERIFY_TOKEN=...
+```
+
+Webhook URL per Meta: `https://tuo-dominio/whatsapp/webhook`
+
+Senza queste variabili Flexi funziona solo col simulatore `/dev`.
 
 ## Roadmap
 
 1. ✅ Fondamenta: schema DB + struttura progetto
 2. ✅ Core: parser, conferma, esecuzione azioni, wa.me
-3. ✅ Simulatore dev
-4. ⬜ Webhook WhatsApp Cloud API
+3. ✅ Simulatore dev + trust (anti-duplicati)
+4. ✅ Adapter WhatsApp (attivo con credenziali Meta)
+5. ⬜ Deploy + primo barbiere reale

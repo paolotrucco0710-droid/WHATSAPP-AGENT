@@ -22,6 +22,27 @@ export async function findNextScheduledAppointment(
   return appointment ?? null;
 }
 
+export async function findScheduledAppointmentAt(
+  db: Db,
+  barberId: number,
+  clientId: number,
+  startsAt: string,
+) {
+  const [appointment] = await db
+    .select()
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.barberId, barberId),
+        eq(appointments.clientId, clientId),
+        eq(appointments.startsAt, startsAt),
+        eq(appointments.status, "scheduled"),
+      ),
+    )
+    .limit(1);
+  return appointment ?? null;
+}
+
 export async function createAppointment(
   db: Db,
   params: {

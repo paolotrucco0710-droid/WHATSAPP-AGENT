@@ -2,7 +2,7 @@ import type { Db } from "../db/index.js";
 import type { MessageSender } from "../messaging/types.js";
 import { parseNaturalLanguage } from "../llm/parser.js";
 import { findOrCreateBarber } from "../services/barber.js";
-import { findClientsByName } from "../services/clients.js";
+import { findClientsByName, findClientByPhone } from "../services/clients.js";
 import {
   getConversationState,
   parsePendingContext,
@@ -16,6 +16,7 @@ import {
   buildClientSelectionMessage,
 } from "../services/summary.js";
 import { getInstantResponse } from "../services/responses.js";
+import { checkDuplicateAppointment } from "../services/validation.js";
 import {
   formatAgendaMessage,
   getAgendaForDate,
@@ -162,14 +163,45 @@ async function handleClientSelection(
   }
 
   const selected = context.candidates[choice - 1]!;
-  const summary = buildActionSummary(context.action, selected.displayName);
+  await proceedToConfirmation(
+    db,
+    sender,
+    barberId,
+    barberPhone,
+    context.action,
+    selected.id,
+    selected.displayName,
+  );
+}
 
+async function proceedToConfirmation(
+  db: Db,
+  sender: MessageSender,
+  barberId: number,
+  barberPhone: string,
+  action: FlexiAction,
+  resolvedClientId: number,
+  clientDisplayName: string,
+) {
+  if (action.type === "create_appointment") {
+    const duplicateMsg = await checkDuplicateAppointment(
+      db,
+      barberId,
+      resolvedClientId,
+      action,
+    );
+    if (duplicateMsg) {
+      await reply(sender, barberPhone, duplicateMsg);
+      return;
+    }
+  }
+
+  const summary = buildActionSummary(action, clientDisplayName);
   const pending: PendingConfirmationContext = {
-    action: context.action,
-    resolvedClientId: selected.id,
+    action,
+    resolvedClientId,
     summary,
   };
-
   await setConversationState(db, barberId, "awaiting_confirmation", pending);
   await reply(sender, barberPhone, summary);
 }
@@ -204,6 +236,15 @@ async function handleNewMessage(
       );
       return;
     }
+    const existing = await findClientByPhone(db, barberId, action.phone);
+    if (existing) {
+      await reply(
+        sender,
+        barberPhone,
+        `⚠️ Questo numero è già in rubrica come ${existing.name}. Non l'ho duplicato.`,
+      );
+      return;
+    }
     const summary = buildActionSummary(action);
     const pending: PendingConfirmationContext = { action, summary };
     await setConversationState(db, barberId, "awaiting_confirmation", pending);
@@ -229,14 +270,15 @@ async function handleNewMessage(
 
   if (candidates.length === 1) {
     const client = candidates[0]!;
-    const summary = buildActionSummary(action, client.name);
-    const pending: PendingConfirmationContext = {
+    await proceedToConfirmation(
+      db,
+      sender,
+      barberId,
+      barberPhone,
       action,
-      resolvedClientId: client.id,
-      summary,
-    };
-    await setConversationState(db, barberId, "awaiting_confirmation", pending);
-    await reply(sender, barberPhone, summary);
+      client.id,
+      client.name,
+    );
     return;
   }
 

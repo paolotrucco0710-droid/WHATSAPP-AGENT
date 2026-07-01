@@ -29,6 +29,21 @@ export const flexiActionSchema = z.discriminatedUnion("type", [
     weeksFromNow: z.number().int().positive(),
   }),
   z.object({
+    type: z.literal("view_agenda"),
+    date: z.string().default("oggi"),
+  }),
+  z.object({
+    type: z.literal("complete_appointment"),
+    clientName: z.string().min(1),
+  }),
+  z.object({
+    type: z.literal("greeting"),
+  }),
+  z.object({
+    type: z.literal("out_of_scope"),
+    topic: z.enum(["earnings", "bulk_send"]),
+  }),
+  z.object({
     type: z.literal("unknown"),
     reason: z.string().optional(),
   }),

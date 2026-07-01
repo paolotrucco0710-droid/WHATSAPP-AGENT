@@ -2,7 +2,9 @@ import type { Db } from "../db/index.js";
 import type { FlexiAction } from "../types/actions.js";
 import {
   cancelAppointment,
+  completeAppointment,
   createAppointment,
+  findAppointmentToComplete,
   findNextScheduledAppointment,
   rescheduleAppointment,
 } from "./appointments.js";
@@ -150,6 +152,34 @@ export async function executeAction(
       return {
         message: reminder.text,
         waMeLink: reminder.waMeLink,
+      };
+    }
+
+    case "complete_appointment": {
+      if (!resolvedClientId) {
+        return { message: "Cliente non trovato." };
+      }
+      const client = await findClientById(db, resolvedClientId);
+      if (!client) {
+        return { message: "Cliente non trovato." };
+      }
+      const todayIso = resolveDate("oggi");
+      const appointment = await findAppointmentToComplete(
+        db,
+        barberId,
+        resolvedClientId,
+        todayIso,
+      );
+      if (!appointment) {
+        return {
+          message: `Non trovo un appuntamento attivo per ${client.name}.`,
+        };
+      }
+      await completeAppointment(db, appointment.id);
+      const time = appointment.startsAt.split("T")[1]?.slice(0, 5) ?? "";
+      const date = appointment.startsAt.split("T")[0] ?? "";
+      return {
+        message: `✅ ${client.name} segnato come fatto (${formatDisplayDate(date)} alle ${time}).`,
       };
     }
 

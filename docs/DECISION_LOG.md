@@ -12,3 +12,5 @@
 | 2026-07-01 | SQLite per dev, schema multi-tenant | Zero infra, pronto per Postgres |
 | 2026-07-01 | TypeScript + Hono + Drizzle | Stack minimale e tipizzato |
 | 2026-07-01 | Core senza webhook WhatsApp | Parser + conferma + azioni + simulatore `/dev/message` |
+| 2026-07-01 | `agenda oggi` e `Marco fatto` in V1 | Lettura agenda e completamento utili alla validazione |
+| 2026-07-01 | Guadagni e invio bulk fuori scope | Risposta onesta senza analytics/automazioni (PRODUCT_BRIEF) |

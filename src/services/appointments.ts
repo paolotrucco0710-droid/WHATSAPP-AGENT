@@ -1,4 +1,4 @@
-import { and, eq, desc } from "drizzle-orm";
+import { and, eq, asc } from "drizzle-orm";
 import type { Db } from "../db/index.js";
 import { appointments } from "../db/schema.js";
 
@@ -64,4 +64,40 @@ export async function cancelAppointment(db: Db, appointmentId: number) {
     .where(eq(appointments.id, appointmentId))
     .returning();
   return updated ?? null;
+}
+
+export async function completeAppointment(db: Db, appointmentId: number) {
+  const [updated] = await db
+    .update(appointments)
+    .set({ status: "completed" })
+    .where(eq(appointments.id, appointmentId))
+    .returning();
+  return updated ?? null;
+}
+
+/** Appuntamento programmato di oggi per il cliente, altrimenti il prossimo. */
+export async function findAppointmentToComplete(
+  db: Db,
+  barberId: number,
+  clientId: number,
+  todayIso: string,
+) {
+  const scheduled = await db
+    .select()
+    .from(appointments)
+    .where(
+      and(
+        eq(appointments.barberId, barberId),
+        eq(appointments.clientId, clientId),
+        eq(appointments.status, "scheduled"),
+      ),
+    )
+    .orderBy(appointments.startsAt);
+
+  const todayAppt = scheduled.find((a) =>
+    a.startsAt.startsWith(todayIso),
+  );
+  if (todayAppt) return todayAppt;
+
+  return scheduled[0] ?? null;
 }

@@ -15,7 +15,9 @@ export function buildActionSummary(
     return action.reason ?? "Non ho capito. Puoi ripetere?";
   }
 
-  const name = clientDisplayName ?? action.clientName;
+  const name =
+    clientDisplayName ??
+    ("clientName" in action ? action.clientName : "");
 
   switch (action.type) {
     case "create_appointment": {
@@ -70,6 +72,14 @@ export function buildActionSummary(
         "",
         "Confermi?",
       ].join("\n");
+    case "complete_appointment":
+      return [
+        "Ho capito questo:",
+        "",
+        `• Segnare come fatto l'appuntamento di ${name}`,
+        "",
+        "Confermi?",
+      ].join("\n");
     default:
       return "Non ho capito. Puoi ripetere?";
   }
@@ -95,7 +105,9 @@ export function buildSuccessMessage(
     return "Non ho capito.";
   }
 
-  const name = clientDisplayName ?? action.clientName;
+  const name =
+    clientDisplayName ??
+    ("clientName" in action ? action.clientName : "");
 
   switch (action.type) {
     case "create_appointment":

@@ -1,5 +1,6 @@
 import type { FlexiAction } from "../types/actions.js";
 import { flexiActionSchema } from "../types/actions.js";
+import { validateAndNormalizeAction } from "../services/validation.js";
 
 const SYSTEM_PROMPT = `Sei il parser di Flexi, un assistente per barbieri su WhatsApp.
 Il tuo UNICO compito è estrarre l'azione dal messaggio del barbiere.
@@ -67,13 +68,28 @@ export function parseWithRules(text: string): FlexiAction {
     };
   }
 
-  const cancelMatch = t.match(
-    /(.+?)\s+(?:ha\s+)?(?:annullato|annulla|cancellato|cancella|non\s+viene)/i,
-  );
+  const cancelMatch =
+    t.match(/cancella(?:\s+l'?appuntamento)?\s+(?:di\s+)?(.+)/i) ??
+    t.match(/(.+?)\s+(?:ha\s+)?(?:annullato|annulla|cancellato|cancella|non\s+viene)/i);
   if (cancelMatch?.[1]) {
     return {
       type: "cancel_appointment",
       clientName: cancelMatch[1].replace(/^(?:che\s+)?/i, "").trim(),
+    };
+  }
+
+  const movedMatch = t.match(
+    /(.+?)\s+ha\s+spostato\s+(?:a|alle?)\s+(.+)/i,
+  );
+  if (movedMatch?.[1] && movedMatch[2]) {
+    const rest = movedMatch[2].trim();
+    const timeMatch = rest.match(/(\d{1,2}[:.]?\d{0,2})/);
+    const datePart = rest.replace(timeMatch?.[0] ?? "", "").trim() || rest;
+    return {
+      type: "reschedule_appointment",
+      clientName: movedMatch[1].trim(),
+      date: datePart,
+      time: timeMatch?.[1],
     };
   }
 
@@ -150,11 +166,24 @@ export function parseWithRules(text: string): FlexiAction {
 
 export async function parseNaturalLanguage(text: string): Promise<FlexiAction> {
   const apiKey = process.env.OPENAI_API_KEY;
+  let action: FlexiAction;
 
-  if (!apiKey) {
-    return parseWithRules(text);
+  if (apiKey) {
+    action = await parseWithOpenAI(text, apiKey);
+  } else {
+    console.warn(
+      "[flexi] OPENAI_API_KEY assente — uso parser rule-based (meno preciso)",
+    );
+    action = parseWithRules(text);
   }
 
+  return validateAndNormalizeAction(action);
+}
+
+async function parseWithOpenAI(
+  text: string,
+  apiKey: string,
+): Promise<FlexiAction> {
   const today = new Date().toISOString().split("T")[0];
 
   const response = await fetch("https://api.openai.com/v1/chat/completions", {

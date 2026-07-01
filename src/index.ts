@@ -2,15 +2,31 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { getDb } from "./db/index.js";
 import { createDevRoutes } from "./routes/dev.js";
+import { createWhatsAppRoutes } from "./routes/whatsapp.js";
+import { isWhatsAppConfigured } from "./messaging/whatsapp-config.js";
 
 const app = new Hono();
 
 app.get("/health", (c) => {
-  return c.json({ status: "ok", service: "flexi" });
+  return c.json({
+    status: "ok",
+    service: "flexi",
+    whatsapp: isWhatsAppConfigured() ? "configured" : "not_configured",
+  });
 });
 
+const db = getDb();
+
+if (isWhatsAppConfigured()) {
+  app.route("/whatsapp", createWhatsAppRoutes(db));
+  console.log("WhatsApp webhook: GET/POST /whatsapp/webhook");
+} else {
+  console.log(
+    "WhatsApp non configurato — imposta WHATSAPP_* in .env per attivarlo",
+  );
+}
+
 if (process.env.NODE_ENV !== "production") {
-  const db = getDb();
   app.route("/dev", createDevRoutes(db));
 }
 

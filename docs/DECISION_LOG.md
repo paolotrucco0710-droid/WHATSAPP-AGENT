@@ -14,3 +14,6 @@
 | 2026-07-01 | Core senza webhook WhatsApp | Parser + conferma + azioni + simulatore `/dev/message` |
 | 2026-07-01 | `agenda oggi` e `Marco fatto` in V1 | Lettura agenda e completamento utili alla validazione |
 | 2026-07-01 | Guadagni e invio bulk fuori scope | Risposta onesta senza analytics/automazioni (PRODUCT_BRIEF) |
+| 2026-07-01 | Anti-duplicati appuntamenti e clienti | Trust: stesso slot / stesso telefono → blocco + messaggio chiaro |
+| 2026-07-01 | OpenAI default + validation layer | Parsing più robusto, date/ore validate |
+| 2026-07-01 | Adapter WhatsApp pronto | Webhook + sender; attivo solo con WHATSAPP_* in .env |

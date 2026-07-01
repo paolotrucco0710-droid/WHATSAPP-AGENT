@@ -11,5 +11,4 @@
 | 2026-07-01 | wa.me in V1, astrazione `sendReminder()` | Veloce da validare, automatizzabile in V2 |
 | 2026-07-01 | SQLite per dev, schema multi-tenant | Zero infra, pronto per Postgres |
 | 2026-07-01 | TypeScript + Hono + Drizzle | Stack minimale e tipizzato |
-| 2026-07-01 | Core senza webhook WhatsApp | Simulatore dev finché Meta non è configurato |
-| 2026-07-01 | Core pipeline senza webhook | Parser + conferma + azioni + simulatore `/dev/message` |
+| 2026-07-01 | Core senza webhook WhatsApp | Parser + conferma + azioni + simulatore `/dev/message` |

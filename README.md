@@ -43,8 +43,20 @@ curl -s -X POST http://localhost:3000/dev/message \
 Senza `OPENAI_API_KEY` usa un parser rule-based (meno preciso). Con la key usa OpenAI + validation layer.
 
 ```bash
-npm run test:phrases   # test 30 frasi barbiere
+npm run test:phrases   # test 22 frasi barbiere (data/barber-phrases.json)
+npm run test           # test automatici (anti-duplicati, agenda, ecc.)
 ```
+
+Apri nel browser: `http://localhost:3000/dev/db` per vedere il database in JSON.
+
+Simula contatto condiviso:
+```bash
+curl -X POST http://localhost:3000/dev/contact \
+  -H 'Content-Type: application/json' \
+  -d '{"barberPhone":"+393331112233","name":"Andrea","phone":"+393337778888"}'
+```
+
+Metti `OPENAI_API_KEY` nel file `.env` per parsing migliore su frasi vaghe.
 
 ## WhatsApp Cloud API
 

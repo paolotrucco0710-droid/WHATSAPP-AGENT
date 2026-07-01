@@ -8,6 +8,7 @@ import { extractInboundFromWhatsApp } from "../messaging/whatsapp-inbound.js";
 export function createWhatsAppRoutes(db: Db) {
   const app = new Hono();
 
+  /** Verifica webhook Meta (GET) */
   app.get("/webhook", (c) => {
     const config = getWhatsAppConfig();
     if (!config) {
@@ -24,6 +25,7 @@ export function createWhatsAppRoutes(db: Db) {
     return c.text("Forbidden", 403);
   });
 
+  /** Ricevi messaggi WhatsApp (POST) */
   app.post("/webhook", async (c) => {
     const config = getWhatsAppConfig();
     if (!config) {

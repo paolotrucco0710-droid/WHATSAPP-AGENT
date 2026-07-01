@@ -145,4 +145,18 @@ describe("Flexi", () => {
     const recent = new Date().toISOString().replace("T", " ").slice(0, 19);
     assert.equal(isConversationExpired(recent), false);
   });
+
+  it("allowlist barbiere blocca numeri non autorizzati", async () => {
+    setupDb();
+    process.env.BARBER_ALLOWLIST = "+393339990000";
+
+    const collector = new DevMessageCollector();
+    await processInbound(db, collector, {
+      barberPhone: "+393331111111",
+      text: "Ciao",
+    });
+
+    assert.match(collector.messages[0]!.text, /non è ancora attivo/i);
+    delete process.env.BARBER_ALLOWLIST;
+  });
 });

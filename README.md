@@ -63,14 +63,53 @@ Metti `OPENAI_API_KEY` nel file `.env` per parsing migliore su frasi vaghe.
 L'adapter è pronto. Copia `.env.example` → `.env` e compila:
 
 ```
+OPENAI_API_KEY=...
 WHATSAPP_PHONE_NUMBER_ID=...
 WHATSAPP_ACCESS_TOKEN=...
 WHATSAPP_VERIFY_TOKEN=...
+BARBER_ALLOWLIST=+393331112233
+ADMIN_SECRET=una-password-lunga
 ```
 
 Webhook URL per Meta: `https://tuo-dominio/whatsapp/webhook`
 
 Senza queste variabili Flexi funziona solo col simulatore `/dev`.
+
+### Cosa fa il barbiere
+
+1. Salva in rubrica il **numero WhatsApp di Flexi** (quello che ottieni da Meta — non il suo numero personale).
+2. Scrive un messaggio, ad esempio `Ciao` o `Marco domani alle 15`.
+3. Fine. Nessun login, nessuna app, nessuna registrazione.
+
+Flexi riconosce il barbiere dal **numero da cui scrive** e crea l'account automaticamente al primo messaggio.
+
+### Cosa fai tu (una tantum)
+
+1. **Deploy** del server con HTTPS (vedi sotto).
+2. **Meta Developer Console** → WhatsApp → Configuration:
+   - Callback URL: `https://tuo-dominio/whatsapp/webhook`
+   - Verify token: uguale a `WHATSAPP_VERIFY_TOKEN` nel `.env`
+   - Iscriviti al campo `messages`
+3. Se sei ancora in **modalità test Meta**, aggiungi il numero del barbiere come destinatario di test nell'app Meta (altrimenti non può scrivere/ricevere).
+4. (Opzionale) Pre-configura durata taglio e nome barbiere:
+
+```bash
+curl -X POST https://tuo-dominio/admin/barber \
+  -H 'Content-Type: application/json' \
+  -H 'X-Admin-Secret: una-password-lunga' \
+  -d '{"phone":"+393331112233","averageTime":45,"name":"Mario"}'
+```
+
+Se non lo fai, al primo messaggio il barbiere viene creato con `average_time` 30 minuti (default).
+
+### Deploy (Docker)
+
+```bash
+docker build -t flexi .
+docker run -p 3000:3000 --env-file .env -v flexi-data:/app/data flexi
+```
+
+Verifica: `GET https://tuo-dominio/health` → `"whatsapp": "configured"`.
 
 ## Roadmap
 

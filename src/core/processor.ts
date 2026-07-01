@@ -2,6 +2,7 @@ import type { Db } from "../db/index.js";
 import type { MessageSender } from "../messaging/types.js";
 import { parseNaturalLanguage } from "../llm/parser.js";
 import { findOrCreateBarber } from "../services/barber.js";
+import { isBarberAllowed } from "../services/barber-access.js";
 import { findClientsByName, findClientByPhone, findClientById } from "../services/clients.js";
 import {
   getConversationState,
@@ -76,6 +77,15 @@ export async function processInbound(
   sender: MessageSender,
   inbound: InboundMessage,
 ): Promise<void> {
+  if (!isBarberAllowed(inbound.barberPhone)) {
+    await reply(
+      sender,
+      inbound.barberPhone,
+      "Flexi non è ancora attivo per questo numero. Contatta chi ti ha dato il contatto.",
+    );
+    return;
+  }
+
   const barber = await findOrCreateBarber(db, inbound.barberPhone);
   let state = await getConversationState(db, barber.id);
 

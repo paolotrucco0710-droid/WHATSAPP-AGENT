@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { getDb } from "./db/index.js";
+import { createAdminRoutes } from "./routes/admin.js";
 import { createDevRoutes } from "./routes/dev.js";
 import { createWhatsAppRoutes } from "./routes/whatsapp.js";
 import { isWhatsAppConfigured } from "./messaging/whatsapp-config.js";
@@ -16,6 +17,11 @@ app.get("/health", (c) => {
 });
 
 const db = getDb();
+
+if (process.env.ADMIN_SECRET) {
+  app.route("/admin", createAdminRoutes(db));
+  console.log("Admin API: POST /admin/barber");
+}
 
 if (isWhatsAppConfigured()) {
   app.route("/whatsapp", createWhatsAppRoutes(db));

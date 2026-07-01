@@ -109,7 +109,9 @@ docker build -t flexi .
 docker run -p 3000:3000 --env-file .env -v flexi-data:/app/data flexi
 ```
 
-Verifica: `GET https://tuo-dominio/health` → `"whatsapp": "configured"`.
+Verifica: `GET https://tuo-dominio/health` → `"messaging": "twilio"` o `"meta"`.
+
+**Guida completa per Twilio (senza PC, solo web):** [docs/GUIDA_SETUP_TWILIO.md](docs/GUIDA_SETUP_TWILIO.md)
 
 ## Roadmap
 

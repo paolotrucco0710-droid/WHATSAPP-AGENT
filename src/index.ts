@@ -3,16 +3,22 @@ import { Hono } from "hono";
 import { getDb } from "./db/index.js";
 import { createAdminRoutes } from "./routes/admin.js";
 import { createDevRoutes } from "./routes/dev.js";
+import { createTwilioRoutes } from "./routes/twilio.js";
 import { createWhatsAppRoutes } from "./routes/whatsapp.js";
-import { isWhatsAppConfigured } from "./messaging/whatsapp-config.js";
+import {
+  getMessagingProvider,
+} from "./messaging/messaging-status.js";
 
 const app = new Hono();
 
 app.get("/health", (c) => {
+  const provider = getMessagingProvider();
   return c.json({
     status: "ok",
     service: "flexi",
-    whatsapp: isWhatsAppConfigured() ? "configured" : "not_configured",
+    messaging: provider === "none" ? "not_configured" : provider,
+    whatsapp: provider === "meta" ? "configured" : "not_configured",
+    twilio: provider === "twilio" ? "configured" : "not_configured",
   });
 });
 
@@ -23,12 +29,17 @@ if (process.env.ADMIN_SECRET) {
   console.log("Admin API: POST /admin/barber");
 }
 
-if (isWhatsAppConfigured()) {
+const provider = getMessagingProvider();
+
+if (provider === "twilio") {
+  app.route("/twilio", createTwilioRoutes(db));
+  console.log("Twilio webhook: POST /twilio/webhook");
+} else if (provider === "meta") {
   app.route("/whatsapp", createWhatsAppRoutes(db));
   console.log("WhatsApp webhook: GET/POST /whatsapp/webhook");
 } else {
   console.log(
-    "WhatsApp non configurato — imposta WHATSAPP_* in .env per attivarlo",
+    "Messaggistica non configurata — imposta TWILIO_* o WHATSAPP_* in .env",
   );
 }
 

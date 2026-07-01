@@ -10,6 +10,8 @@ import { findClientsByName } from "../src/services/clients.js";
 import { isConversationExpired } from "../src/services/conversation.js";
 import { parseWithRules } from "../src/llm/parser.js";
 import { validateAndNormalizeAction } from "../src/services/validation.js";
+import { extractInboundFromTwilio } from "../src/messaging/twilio-inbound.js";
+import { getMessagingProvider } from "../src/messaging/messaging-status.js";
 
 const TEST_DB = "./data/test-flexi.db";
 const BARBER = "+393339990000";
@@ -158,5 +160,31 @@ describe("Flexi", () => {
 
     assert.match(collector.messages[0]!.text, /non è ancora attivo/i);
     delete process.env.BARBER_ALLOWLIST;
+  });
+
+  it("parser webhook Twilio da form-urlencoded", () => {
+    const messages = extractInboundFromTwilio({
+      From: "whatsapp:+393331112233",
+      Body: "Marco domani alle 15",
+      WaId: "393331112233",
+    });
+
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0]!.barberPhone, "+393331112233");
+    assert.equal(messages[0]!.text, "Marco domani alle 15");
+  });
+
+  it("provider twilio ha priorità se configurato", () => {
+    process.env.MESSAGING_PROVIDER = "twilio";
+    process.env.TWILIO_ACCOUNT_SID = "ACtest";
+    process.env.TWILIO_AUTH_TOKEN = "token";
+    process.env.TWILIO_WHATSAPP_FROM = "whatsapp:+14155238886";
+
+    assert.equal(getMessagingProvider(), "twilio");
+
+    delete process.env.MESSAGING_PROVIDER;
+    delete process.env.TWILIO_ACCOUNT_SID;
+    delete process.env.TWILIO_AUTH_TOKEN;
+    delete process.env.TWILIO_WHATSAPP_FROM;
   });
 });

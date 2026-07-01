@@ -18,11 +18,54 @@ Azioni possibili:
 - cancel_appointment: { type, clientName }
 - create_client: { type, clientName, phone? }
 - set_reminder: { type, clientName, weeksFromNow }
+- view_agenda: { type, date } — date: "oggi", "domani" o ISO
+- complete_appointment: { type, clientName } — cliente segnato come fatto/completato
+- greeting: { type } — saluti (ciao, buongiorno, come stai)
+- out_of_scope: { type, topic } — topic "earnings" per guadagni/soldi, "bulk_send" per inviare tutto in automatico
 - unknown: { type, reason? }`;
 
 /** Parser rule-based per dev senza API key */
 export function parseWithRules(text: string): FlexiAction {
   const t = text.trim();
+  const lower = t.toLowerCase();
+
+  if (/^(ciao|buongiorno|buonasera|salve|hey|ehi)(\s+come\s+stai)?[!.?]*$/i.test(lower)) {
+    return { type: "greeting" };
+  }
+
+  if (
+    /quanto\s+(ho\s+)?(guadagnato|fatto|preso)/i.test(lower) ||
+    /soldi|incasso/i.test(lower)
+  ) {
+    return { type: "out_of_scope", topic: "earnings" };
+  }
+
+  if (/^(ok\s+)?manda\s+tutto$/i.test(lower) || /^invia\s+tutto$/i.test(lower)) {
+    return { type: "out_of_scope", topic: "bulk_send" };
+  }
+
+  if (/^agenda(\s+(oggi|domani))?$/i.test(lower) || /^mostra(mi)?\s+l'?agenda/i.test(lower)) {
+    const dayMatch = lower.match(/(oggi|domani)/);
+    return { type: "view_agenda", date: dayMatch?.[1] ?? "oggi" };
+  }
+
+  const doneMatch = t.match(/^(.+?)\s+(?:è\s+)?fatto[!.?]*$/i) ?? t.match(/^fatto\s+(.+?)[!.?]*$/i);
+  if (doneMatch?.[1]) {
+    return {
+      type: "complete_appointment",
+      clientName: doneMatch[1].trim(),
+    };
+  }
+
+  const mettiTimeMatch = t.match(/^metti\s+(.+?)\s+alle?\s+(\d{1,2}[:.]?\d{0,2}|\w+)\s*$/i);
+  if (mettiTimeMatch?.[1] && mettiTimeMatch[2]) {
+    return {
+      type: "create_appointment",
+      clientName: mettiTimeMatch[1].trim(),
+      date: "oggi",
+      time: mettiTimeMatch[2].trim(),
+    };
+  }
 
   const cancelMatch = t.match(
     /(.+?)\s+(?:ha\s+)?(?:annullato|annulla|cancellato|cancella|non\s+viene)/i,
@@ -57,7 +100,7 @@ export function parseWithRules(text: string): FlexiAction {
   }
 
   const rescheduleMatch = t.match(
-    /(?:spost[oa]|metti)\s+(.+?)\s+(?:a|alle?)\s+(.+)/i,
+    /(?:spost[oa])\s+(.+?)\s+(?:a|alle?)\s+(.+)/i,
   );
   if (rescheduleMatch?.[1] && rescheduleMatch[2]) {
     const rest = rescheduleMatch[2].trim();
@@ -92,6 +135,13 @@ export function parseWithRules(text: string): FlexiAction {
       clientName: altAppointment[3].trim(),
       date: altAppointment[1].trim(),
       time: altAppointment[2].trim(),
+    };
+  }
+
+  if (/^forse[!.?]*$/i.test(lower)) {
+    return {
+      type: "unknown",
+      reason: "pending_nothing",
     };
   }
 

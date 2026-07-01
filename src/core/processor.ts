@@ -15,6 +15,11 @@ import {
   buildActionSummary,
   buildClientSelectionMessage,
 } from "../services/summary.js";
+import { getInstantResponse } from "../services/responses.js";
+import {
+  formatAgendaMessage,
+  getAgendaForDate,
+} from "../services/agenda.js";
 import type { FlexiAction } from "../types/actions.js";
 import type {
   ClientSelectionContext,
@@ -31,18 +36,26 @@ function isRejection(text: string): boolean {
   return /^(no|annulla|annullato|nop|nope)\.?$/i.test(t);
 }
 
+function isAmbiguous(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  return /^(forse|boh|non\s+so|vediamo)\.?$/i.test(t);
+}
+
 function parseSelectionNumber(text: string): number | null {
   const match = text.trim().match(/^(\d+)$/);
   if (!match?.[1]) return null;
   return Number(match[1]);
 }
 
-function needsClientResolution(action: FlexiAction): boolean {
+function needsClientResolution(
+  action: FlexiAction,
+): action is FlexiAction & { clientName: string } {
   return (
     action.type === "create_appointment" ||
     action.type === "reschedule_appointment" ||
     action.type === "cancel_appointment" ||
-    action.type === "set_reminder"
+    action.type === "set_reminder" ||
+    action.type === "complete_appointment"
   );
 }
 
@@ -91,7 +104,7 @@ async function handleConfirmation(
     return;
   }
 
-  if (!isConfirmation(text)) {
+  if (isAmbiguous(text) || !isConfirmation(text)) {
     await reply(
       sender,
       barberPhone,
@@ -125,6 +138,12 @@ async function handleClientSelection(
   text: string,
   rawContext: string | null,
 ) {
+  if (isRejection(text)) {
+    await resetConversationState(db, barberId);
+    await reply(sender, barberPhone, "Ok, annullato.");
+    return;
+  }
+
   const context = parseSelectionContext(rawContext);
   if (!context) {
     await resetConversationState(db, barberId);
@@ -137,7 +156,7 @@ async function handleClientSelection(
     await reply(
       sender,
       barberPhone,
-      `Rispondi con un numero da 1 a ${context.candidates.length}.`,
+      `Rispondi con un numero da 1 a ${context.candidates.length}, oppure Annulla.`,
     );
     return;
   }
@@ -164,12 +183,15 @@ async function handleNewMessage(
 ) {
   const action = await parseNaturalLanguage(text);
 
-  if (action.type === "unknown") {
-    await reply(
-      sender,
-      barberPhone,
-      action.reason ?? "Non ho capito. Puoi ripetere?",
-    );
+  if (action.type === "view_agenda") {
+    const items = await getAgendaForDate(db, barberId, action.date);
+    await reply(sender, barberPhone, formatAgendaMessage(action.date, items));
+    return;
+  }
+
+  const instant = getInstantResponse(action);
+  if (instant !== null) {
+    await reply(sender, barberPhone, instant);
     return;
   }
 
@@ -193,13 +215,14 @@ async function handleNewMessage(
     return;
   }
 
-  const candidates = await findClientsByName(db, barberId, action.clientName);
+  const clientName = action.clientName;
+  const candidates = await findClientsByName(db, barberId, clientName);
 
   if (candidates.length === 0) {
     await reply(
       sender,
       barberPhone,
-      `Non trovo ${action.clientName} in rubrica.\n\nÈ un cliente nuovo? Condividimi il suo contatto WhatsApp per aggiungerlo.`,
+      `Non trovo ${clientName} in rubrica.\n\nÈ un cliente nuovo? Condividimi il suo contatto WhatsApp per aggiungerlo.`,
     );
     return;
   }

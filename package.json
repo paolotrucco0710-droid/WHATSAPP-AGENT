@@ -10,7 +10,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:studio": "drizzle-kit studio",
     "typecheck": "tsc --noEmit",
-    "test:phrases": "tsx scripts/test-phrases.ts"
+    "test:phrases": "tsx scripts/test-phrases.ts",
+    "test": "tsx --test tests/**/*.test.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.1",

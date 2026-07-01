@@ -11,6 +11,25 @@ export type ConversationStateType =
   | "awaiting_confirmation"
   | "awaiting_client_selection";
 
+const DEFAULT_TIMEOUT_MINUTES = 30;
+
+export function getConversationTimeoutMs(): number {
+  const minutes = Number(
+    process.env.CONVERSATION_TIMEOUT_MINUTES ?? DEFAULT_TIMEOUT_MINUTES,
+  );
+  return minutes * 60 * 1000;
+}
+
+/** SQLite datetime → timestamp */
+function parseSqliteDatetime(value: string): number {
+  return Date.parse(value.replace(" ", "T") + "Z");
+}
+
+export function isConversationExpired(updatedAt: string): boolean {
+  const age = Date.now() - parseSqliteDatetime(updatedAt);
+  return age > getConversationTimeoutMs();
+}
+
 export async function getConversationState(db: Db, barberId: number) {
   const [state] = await db
     .select()

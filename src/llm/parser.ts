@@ -50,6 +50,11 @@ export function parseWithRules(text: string): FlexiAction {
     return { type: "view_agenda", date: dayMatch?.[1] ?? "oggi" };
   }
 
+  if (/^che\s+ho\s+(oggi|domani)/i.test(lower)) {
+    const dayMatch = lower.match(/(oggi|domani)/);
+    return { type: "view_agenda", date: dayMatch?.[1] ?? "oggi" };
+  }
+
   const doneMatch = t.match(/^(.+?)\s+(?:è\s+)?fatto[!.?]*$/i) ?? t.match(/^fatto\s+(.+?)[!.?]*$/i);
   if (doneMatch?.[1]) {
     return {
@@ -58,7 +63,9 @@ export function parseWithRules(text: string): FlexiAction {
     };
   }
 
-  const mettiTimeMatch = t.match(/^metti\s+(.+?)\s+alle?\s+(\d{1,2}[:.]?\d{0,2}|\w+)\s*$/i);
+  const mettiTimeMatch = t.match(
+    /^metti\s+(.+?)\s+alle?\s+(\d{1,2}[:.]?\d{0,2}|\w+(?:\s+e\s+mezza)?)\s*$/i,
+  );
   if (mettiTimeMatch?.[1] && mettiTimeMatch[2]) {
     return {
       type: "create_appointment",
@@ -131,7 +138,7 @@ export function parseWithRules(text: string): FlexiAction {
   }
 
   const appointmentMatch = t.match(
-    /(.+?)\s+(domani|dopodomani|oggi|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|\d{4}-\d{2}-\d{2}).*?(?:alle?\s*)?(\d{1,2}[:.]?\d{0,2}|\w+)/i,
+    /(?:appuntamento\s+)?(.+?)\s+(domani|dopodomani|oggi|lunedì|martedì|mercoledì|giovedì|venerdì|sabato|domenica|\d{4}-\d{2}-\d{2}).*?(?:alle?\s*)?(\d{1,2}[:.]?\d{0,2}|\w+(?:\s+e\s+mezza)?)/i,
   );
   if (appointmentMatch?.[1] && appointmentMatch[2] && appointmentMatch[3]) {
     return {

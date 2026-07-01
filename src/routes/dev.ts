@@ -1,12 +1,28 @@
 import { Hono } from "hono";
+import { eq } from "drizzle-orm";
 import type { Db } from "../db/index.js";
-import { processMessage } from "../core/processor.js";
+import { processInbound } from "../core/processor.js";
 import { DevMessageCollector } from "../messaging/types.js";
 import { findClientsByName, createClient } from "../services/clients.js";
 import { findOrCreateBarber } from "../services/barber.js";
+import { barbers, clients, appointments } from "../db/schema.js";
 
 export function createDevRoutes(db: Db) {
   const app = new Hono();
+
+  /** Visualizza tutto il database (solo dev) */
+  app.get("/db", async (c) => {
+    const [allBarbers, allClients, allAppointments] = await Promise.all([
+      db.select().from(barbers),
+      db.select().from(clients),
+      db.select().from(appointments),
+    ]);
+    return c.json({
+      barbers: allBarbers,
+      clients: allClients,
+      appointments: allAppointments,
+    });
+  });
 
   /**
    * Simula un messaggio WhatsApp dal barbiere.
@@ -20,11 +36,36 @@ export function createDevRoutes(db: Db) {
     }
 
     const collector = new DevMessageCollector();
-    await processMessage(db, collector, body.barberPhone, body.text);
-
-    return c.json({
-      replies: collector.messages,
+    await processInbound(db, collector, {
+      barberPhone: body.barberPhone,
+      text: body.text,
     });
+
+    return c.json({ replies: collector.messages });
+  });
+
+  /**
+   * Simula condivisione contatto WhatsApp.
+   * POST { "barberPhone": "+39333...", "name": "Andrea", "phone": "+39333..." }
+   */
+  app.post("/contact", async (c) => {
+    const body = await c.req.json<{
+      barberPhone: string;
+      name: string;
+      phone: string;
+    }>();
+
+    if (!body.barberPhone || !body.name || !body.phone) {
+      return c.json({ error: "barberPhone, name e phone obbligatori" }, 400);
+    }
+
+    const collector = new DevMessageCollector();
+    await processInbound(db, collector, {
+      barberPhone: body.barberPhone,
+      contact: { name: body.name, phone: body.phone },
+    });
+
+    return c.json({ replies: collector.messages });
   });
 
   /** Seed rapido: crea barbiere + clienti di test */
@@ -42,8 +83,6 @@ export function createDevRoutes(db: Db) {
     const barber = await findOrCreateBarber(db, body.barberPhone);
 
     if (body.averageTime) {
-      const { barbers } = await import("../db/schema.js");
-      const { eq } = await import("drizzle-orm");
       await db
         .update(barbers)
         .set({ averageTime: body.averageTime })
@@ -54,9 +93,13 @@ export function createDevRoutes(db: Db) {
     for (const client of body.clients ?? []) {
       const existing = await findClientsByName(db, barber.id, client.name);
       if (existing.length === 0) {
-        createdClients.push(
-          await createClient(db, barber.id, client.name, client.phone),
+        const result = await createClient(
+          db,
+          barber.id,
+          client.name,
+          client.phone,
         );
+        if (result.ok) createdClients.push(result.client);
       }
     }
 

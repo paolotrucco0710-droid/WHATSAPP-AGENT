@@ -17,3 +17,8 @@
 | 2026-07-01 | Anti-duplicati appuntamenti e clienti | Trust: stesso slot / stesso telefono → blocco + messaggio chiaro |
 | 2026-07-01 | OpenAI default + validation layer | Parsing più robusto, date/ore validate |
 | 2026-07-01 | Adapter WhatsApp pronto | Webhook + sender; attivo solo con WHATSAPP_* in .env |
+| 2026-07-01 | GET /dev/db + test automatici | Tool dev senza PC locale |
+| 2026-07-01 | Ricerca clienti esatta → parziale | Meno disambiguazioni inutili |
+| 2026-07-01 | Timeout conversazione 30 min | Reset se barbiere si distrae |
+| 2026-07-01 | Richiamo dopo "fatto" | Suggerimento 5 settimane, non analytics |
+| 2026-07-01 | Contatto condiviso WhatsApp | Inbound contact + POST /dev/contact |

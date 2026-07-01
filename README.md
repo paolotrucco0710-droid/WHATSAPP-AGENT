@@ -26,11 +26,25 @@ npm run dev
 
 Ogni entità appartiene a un barbiere (`barber_id`).
 
+## Simulatore dev (senza WhatsApp)
+
+```bash
+# Seed barbiere + clienti di test
+curl -s -X POST http://localhost:3000/dev/seed \
+  -H 'Content-Type: application/json' \
+  -d '{"barberPhone":"+393331112233","averageTime":30,"clients":[{"name":"Luca Rossi","phone":"+393331234567"},{"name":"Luca Verdi","phone":"+393339876543"},{"name":"Marco","phone":"+393335551111"}]}'
+
+# Simula messaggio barbiere
+curl -s -X POST http://localhost:3000/dev/message \
+  -H 'Content-Type: application/json' \
+  -d '{"barberPhone":"+393331112233","text":"Luca domani alle 15"}'
+```
+
+Senza `OPENAI_API_KEY` usa un parser rule-based. Con la key usa OpenAI.
+
 ## Roadmap
 
 1. ✅ Fondamenta: schema DB + struttura progetto
-2. ⬜ Webhook WhatsApp
-3. ⬜ Parser LLM (linguaggio naturale → azioni)
-4. ⬜ Flusso conferma
-5. ⬜ Esecuzione azioni
-6. ⬜ Link wa.me per promemoria
+2. ✅ Core: parser, conferma, esecuzione azioni, wa.me
+3. ✅ Simulatore dev
+4. ⬜ Webhook WhatsApp Cloud API

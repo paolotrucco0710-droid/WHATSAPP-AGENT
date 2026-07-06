@@ -51,6 +51,9 @@ const port = Number(process.env.PORT ?? 3000);
 const hostname = process.env.HOST ?? "0.0.0.0";
 
 console.log(`[flexi] PORT=${process.env.PORT ?? "(default 3000)"} HOST=${hostname}`);
+console.log(
+  `[flexi] Railway Networking → imposta la porta del dominio pubblico su ${port} (deve coincidere con il log sopra)`,
+);
 
 serve({ fetch: app.fetch, port, hostname }, (info) => {
   console.log(`Flexi running on http://${hostname}:${info.port}`);

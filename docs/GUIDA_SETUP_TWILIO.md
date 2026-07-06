@@ -140,19 +140,26 @@ Se `/health` non risponde:
 4. Variabili minime: `NODE_ENV=production`, `DATABASE_URL=/app/data/flexi.db`, `MESSAGING_PROVIDER=twilio`, `TWILIO_*`
 5. Aggiungi **Volume** su `/app/data` per il database
 
-Se nei log vedi `Flexi running on http://0.0.0.0:3000` (o altra porta) ma `/health` dà **502 Application failed to respond** → il proxy Railway punta a una porta **diversa** da quella dell'app.
+Se nei log vedi:
 
-**Fix (2 minuti):**
+```
+[flexi] PORT=8080 HOST=0.0.0.0
+Flexi running on http://0.0.0.0:8080
+```
+
+ma `/health` dà **502 Application failed to respond** → il dominio pubblico punta a una porta **sbagliata** (spesso 3000).
+
+**Fix (1 minuto):**
 
 1. Railway → servizio Flexi → **Settings** → **Networking**
-2. Clicca **Edit** sul dominio pubblico (`whatsapp-agent-production-....railway.app`)
-3. **Port** / target port → imposta **3000** (la stessa che vedi nel log `Flexi running on http://0.0.0.0:3000`)
-4. Salva → **Redeploy**
-5. Apri `https://TUO-DOMINIO.railway.app/health` — deve rispondere `{"status":"ok",...}`
+2. Clicca **Edit** (matita) sul dominio `whatsapp-agent-production-....railway.app`
+3. Campo **Port** → scrivi **8080** (identica al log `Flexi running on http://0.0.0.0:8080`)
+4. **Update** / Salva — **non serve redeploy**, riprova subito `/health`
+5. Apri `https://TUO-DOMINIO.railway.app/health` → deve rispondere `{"status":"ok",...}`
 
-**Variables:** non aggiungere `PORT` a mano. Se c'è, **eliminala** e redeploy.
+**Variables:** non aggiungere `PORT` a mano. Se l'hai messa (es. `PORT=3000`), **eliminala** e redeploy — Railway userà 8080.
 
-Dopo il prossimo deploy da `main`, nei log compare anche `[flexi] PORT=...` per confermare la porta usata.
+> Se in un deploy precedente avevi impostato la porta a **3000**, va **cambiata in 8080**. Railway usa quasi sempre 8080, non 3000.
 
 ---
 

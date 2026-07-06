@@ -57,6 +57,9 @@ describe("Flexi", () => {
     const cases = [
       ["Marco domani alle 15", "create_appointment"],
       ["agenda oggi", "view_agenda"],
+      ["agenda", "view_agenda"],
+      ["azioni", "daily_briefing"],
+      ["agenda martedì", "view_agenda"],
       ["marco fatto", "complete_appointment"],
       ["gianni ha annullato", "cancel_appointment"],
     ] as const;
@@ -64,6 +67,12 @@ describe("Flexi", () => {
     for (const [text, expected] of cases) {
       const action = validateAndNormalizeAction(parseWithRules(text));
       assert.equal(action.type, expected, `parser: ${text}`);
+      if (text === "agenda") {
+        assert.equal(
+          action.type === "view_agenda" ? action.date : "",
+          "settimana",
+        );
+      }
     }
   });
 
@@ -221,6 +230,31 @@ describe("Flexi", () => {
     const texts = collector.messages.map((m) => m.text).join("\n");
     assert.match(texts, /Invia a Marco Rossi/i);
     assert.ok(collector.messages.some((m) => m.waMeLink?.includes("wa.me")));
+  });
+
+  it("agenda settimana e giorno per nome", async () => {
+    setupDb();
+    await seed();
+
+    await send("Marco domani alle 9");
+    await send("confermo");
+
+    let reply = await send("agenda");
+    assert.match(reply, /Agenda settimana/i);
+    assert.match(reply, /Marco Rossi/i);
+    assert.doesNotMatch(reply, /\d{1,2}\s+\w+\s+\d{4}/);
+
+    reply = await send("agenda domani");
+    assert.match(reply, /Agenda domani/i);
+    assert.match(reply, /Marco Rossi/i);
+  });
+
+  it("azioni equivale a piano oggi", async () => {
+    setupDb();
+    await seed();
+
+    const reply = await send("azioni");
+    assert.match(reply, /Piano di oggi/i);
   });
 
   it("parser ignora servizio nel nome appuntamento", () => {

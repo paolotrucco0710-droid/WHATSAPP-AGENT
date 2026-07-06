@@ -21,8 +21,11 @@ import { getInstantResponse } from "../services/responses.js";
 import { checkDuplicateAppointment } from "../services/validation.js";
 import {
   formatAgendaFromEntries,
+  formatWeekAgendaMessage,
   getAgendaWithGaps,
+  getAgendaForWeek,
 } from "../services/agenda.js";
+import { isWeekAgendaDate } from "../core/dates.js";
 import { startDailyBriefing, handleBriefingFlow } from "../core/briefing-flow.js";
 import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
@@ -339,11 +342,19 @@ async function handleNewMessage(
       .from(barbers)
       .where(eq(barbers.id, barberId))
       .limit(1);
+    const averageTime = barber?.averageTime ?? 30;
+
+    if (isWeekAgendaDate(action.date)) {
+      const week = await getAgendaForWeek(db, barberId, averageTime);
+      await reply(sender, barberPhone, formatWeekAgendaMessage(week));
+      return;
+    }
+
     const entries = await getAgendaWithGaps(
       db,
       barberId,
       action.date,
-      barber?.averageTime ?? 30,
+      averageTime,
     );
     await reply(
       sender,

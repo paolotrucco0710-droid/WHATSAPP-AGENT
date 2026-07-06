@@ -8,9 +8,10 @@ export function getInstantResponse(action: FlexiAction): string | null {
         "Ciao! Sono Flexi.",
         "",
         "Scrivimi ad esempio:",
-        "• piano oggi — link pronti per recuperare clienti",
+        "• azioni / piano oggi — link pronti per recuperare clienti",
         "• Marco domani alle 15",
-        "• agenda oggi",
+        "• agenda — settimana intera",
+        "• agenda martedì — solo quel giorno",
         "• Gianni ha annullato",
       ].join("\n");
     case "out_of_scope":

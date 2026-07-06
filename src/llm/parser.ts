@@ -19,8 +19,8 @@ Azioni possibili:
 - cancel_appointment: { type, clientName }
 - create_client: { type, clientName, phone? }
 - set_reminder: { type, clientName, weeksFromNow }
-- view_agenda: { type, date } — date: "oggi", "domani" o ISO
-- daily_briefing: { type, date } — piano giornaliero con link wa.me (piano oggi, soldi, guadagni, cosa posso fare)
+- view_agenda: { type, date } — date: "settimana", "oggi", "domani", giorno (martedì...) o ISO
+- daily_briefing: { type, date } — piano giornaliero con link wa.me (piano oggi, azioni, soldi, guadagni)
 - complete_appointment: { type, clientName } — cliente segnato come fatto/completato
 - greeting: { type } — saluti (ciao, buongiorno, come stai)
 - out_of_scope: { type, topic } — topic "bulk_send" SOLO per inviare tutto in automatico (manda tutto)
@@ -48,7 +48,7 @@ export function parseWithRules(text: string): FlexiAction {
     return { type: "daily_briefing", date: "oggi" };
   }
 
-  if (/^piano(\s+oggi)?$/i.test(lower) || /^cosa\s+posso\s+fare/i.test(lower) || /^briefing/i.test(lower)) {
+  if (/^azioni(\s+oggi)?$/i.test(lower) || /^piano(\s+oggi)?$/i.test(lower) || /^cosa\s+posso\s+fare/i.test(lower) || /^briefing/i.test(lower)) {
     const dayMatch = lower.match(/(oggi|domani)/);
     return { type: "daily_briefing", date: dayMatch?.[1] ?? "oggi" };
   }
@@ -57,14 +57,29 @@ export function parseWithRules(text: string): FlexiAction {
     return { type: "out_of_scope", topic: "bulk_send" };
   }
 
-  if (/^agenda(\s+(oggi|domani))?$/i.test(lower) || /^mostra(mi)?\s+l'?agenda/i.test(lower)) {
-    const dayMatch = lower.match(/(oggi|domani)/);
-    return { type: "view_agenda", date: dayMatch?.[1] ?? "oggi" };
+  const weekdayPattern =
+    /(oggi|domani|dopodomani|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato|domenica)/i;
+
+  if (
+    /^agenda(\s+settimana|\s+questa\s+settimana)?$/i.test(lower) ||
+    /^agenda$/i.test(lower)
+  ) {
+    return { type: "view_agenda", date: "settimana" };
   }
 
-  if (/^che\s+ho\s+(oggi|domani)/i.test(lower)) {
-    const dayMatch = lower.match(/(oggi|domani)/);
-    return { type: "view_agenda", date: dayMatch?.[1] ?? "oggi" };
+  if (/^agenda\s+/i.test(lower) || /^mostra(mi)?\s+l'?agenda/i.test(lower)) {
+    const dayMatch = lower.match(weekdayPattern);
+    return {
+      type: "view_agenda",
+      date: dayMatch?.[1] ?? "settimana",
+    };
+  }
+
+  if (/^che\s+ho\s+/i.test(lower)) {
+    const dayMatch = lower.match(weekdayPattern);
+    if (dayMatch) {
+      return { type: "view_agenda", date: dayMatch[1]! };
+    }
   }
 
   const doneMatch = t.match(/^(.+?)\s+(?:è\s+)?fatto[!.?]*$/i) ?? t.match(/^fatto\s+(.+?)[!.?]*$/i);

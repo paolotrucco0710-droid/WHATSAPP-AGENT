@@ -136,3 +136,70 @@ export function toStartsAt(isoDate: string, time: string): string {
 }
 
 export { formatDisplayDate };
+
+const WEEKDAY_NAMES = [
+  "domenica",
+  "lunedì",
+  "martedì",
+  "mercoledì",
+  "giovedì",
+  "venerdì",
+  "sabato",
+] as const;
+
+/** Solo nome giorno (es. "martedì"), senza numero */
+export function formatWeekdayOnly(isoDate: string): string {
+  const [y, m, d] = isoDate.split("-").map(Number);
+  const date = new Date(y!, m! - 1, d!);
+  return date.toLocaleDateString("it-IT", {
+    weekday: "long",
+    timeZone: ROME_TZ,
+  });
+}
+
+/** Etichetta agenda: oggi/domani/nome giorno — mai la data numerica */
+export function formatAgendaDayLabel(dateInput: string, isoDate?: string): string {
+  const lower = dateInput.trim().toLowerCase();
+
+  if (lower === "oggi") return "oggi";
+  if (lower === "domani") return "domani";
+  if (lower === "dopodomani") return "dopodomani";
+
+  if (/^\d{4}-\d{2}-\d{2}$/.test(lower)) {
+    return formatWeekdayOnly(lower);
+  }
+
+  for (const name of WEEKDAY_NAMES) {
+    const normalized = name.normalize("NFD").replace(/\p{M}/gu, "");
+    const inputNorm = lower.normalize("NFD").replace(/\p{M}/gu, "");
+    if (inputNorm.includes(normalized)) {
+      return name.charAt(0).toUpperCase() + name.slice(1);
+    }
+  }
+
+  if (isoDate) {
+    return formatWeekdayOnly(isoDate);
+  }
+
+  return dateInput;
+}
+
+/** Prossimi 7 giorni a partire da oggi (Roma) */
+export function getWeekDateRange(reference = nowInRome()): string[] {
+  const dates: string[] = [];
+  const ref = new Date(reference);
+  for (let i = 0; i < 7; i++) {
+    dates.push(formatDateRome(ref));
+    ref.setDate(ref.getDate() + 1);
+  }
+  return dates;
+}
+
+export function isWeekAgendaDate(dateInput: string): boolean {
+  const lower = dateInput.trim().toLowerCase();
+  return (
+    lower === "settimana" ||
+    lower === "questa settimana" ||
+    lower === "la settimana"
+  );
+}

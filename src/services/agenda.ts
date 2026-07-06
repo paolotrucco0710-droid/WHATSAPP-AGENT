@@ -1,7 +1,7 @@
 import { and, eq, gte, lt, asc } from "drizzle-orm";
 import type { Db } from "../db/index.js";
 import { appointments, clients } from "../db/schema.js";
-import { resolveDate, formatDisplayDate } from "../core/dates.js";
+import { resolveDate, formatAgendaDayLabel, getWeekDateRange } from "../core/dates.js";
 import { findEmptySlots } from "./briefing.js";
 
 function nextDayIso(isoDate: string): string {
@@ -125,12 +125,7 @@ export function formatAgendaMessage(
   gaps?: string[],
 ): string {
   const isoDate = resolveDate(dateInput);
-  const label =
-    dateInput.toLowerCase() === "oggi"
-      ? "oggi"
-      : dateInput.toLowerCase() === "domani"
-        ? "domani"
-        : formatDisplayDate(isoDate);
+  const label = formatAgendaDayLabel(dateInput, isoDate);
 
   if (items.length === 0 && (!gaps || gaps.length === 0)) {
     return `Nessun appuntamento per ${label}.`;
@@ -160,6 +155,86 @@ export function formatAgendaMessage(
   }
 
   return lines.join("\n");
+}
+
+export interface WeekAgendaDay {
+  isoDate: string;
+  label: string;
+  entries: AgendaEntry[];
+}
+
+/** Agenda per i prossimi 7 giorni */
+export async function getAgendaForWeek(
+  db: Db,
+  barberId: number,
+  averageTime: number,
+): Promise<WeekAgendaDay[]> {
+  const weekDates = getWeekDateRange();
+  const days: WeekAgendaDay[] = [];
+
+  for (const isoDate of weekDates) {
+    const entries = await getAgendaWithGaps(
+      db,
+      barberId,
+      isoDate,
+      averageTime,
+    );
+    days.push({
+      isoDate,
+      label: formatAgendaDayLabel(isoDate, isoDate),
+      entries,
+    });
+  }
+
+  return days;
+}
+
+export function formatWeekAgendaMessage(days: WeekAgendaDay[]): string {
+  const lines = ["Agenda settimana:", ""];
+
+  let hasAny = false;
+  for (const day of days) {
+    const appointments = day.entries.filter((e) => e.type === "appointment");
+    const gaps = day.entries.filter((e) => e.type === "gap");
+
+    if (appointments.length === 0 && gaps.length === 0) {
+      continue;
+    }
+
+    hasAny = true;
+    lines.push(day.label.charAt(0).toUpperCase() + day.label.slice(1));
+
+    const allTimes = [
+      ...new Set([
+        ...appointments.map((e) => e.time),
+        ...gaps.map((e) => e.time),
+      ]),
+    ].sort();
+
+    for (const time of allTimes) {
+      const gap = gaps.find((g) => g.time === time);
+      if (gap) {
+        lines.push(`🟢 ${time} buco libero`);
+      }
+      const appt = appointments.find((a) => a.time === time);
+      if (appt && appt.type === "appointment") {
+        const icon =
+          appt.status === "completed"
+            ? "✅"
+            : appt.status === "cancelled"
+              ? "❌"
+              : "•";
+        lines.push(`${icon} ${time} ${appt.clientName}`);
+      }
+    }
+    lines.push("");
+  }
+
+  if (!hasAny) {
+    return "Nessun appuntamento in questa settimana.";
+  }
+
+  return lines.join("\n").trimEnd();
 }
 
 export function formatAgendaFromEntries(

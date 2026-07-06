@@ -20,10 +20,10 @@ Azioni possibili:
 - create_client: { type, clientName, phone? }
 - set_reminder: { type, clientName, weeksFromNow }
 - view_agenda: { type, date } — date: "oggi", "domani" o ISO
-- daily_briefing: { type, date } — piano giornaliero con link wa.me (piano oggi, cosa posso fare)
+- daily_briefing: { type, date } — piano giornaliero con link wa.me (piano oggi, soldi, guadagni, cosa posso fare)
 - complete_appointment: { type, clientName } — cliente segnato come fatto/completato
 - greeting: { type } — saluti (ciao, buongiorno, come stai)
-- out_of_scope: { type, topic } — topic "earnings" per guadagni/soldi, "bulk_send" per inviare tutto in automatico
+- out_of_scope: { type, topic } — topic "bulk_send" SOLO per inviare tutto in automatico (manda tutto)
 - unknown: { type, reason? }`;
 
 /** Parser rule-based per dev senza API key */
@@ -81,7 +81,7 @@ export function parseWithRules(text: string): FlexiAction {
   if (mettiTimeMatch?.[1] && mettiTimeMatch[2]) {
     return {
       type: "create_appointment",
-      clientName: mettiTimeMatch[1].trim(),
+      clientName: stripServiceWords(mettiTimeMatch[1].trim()),
       date: "oggi",
       time: mettiTimeMatch[2].trim(),
     };
@@ -167,7 +167,7 @@ export function parseWithRules(text: string): FlexiAction {
   if (altAppointment?.[1] && altAppointment[2] && altAppointment[3]) {
     return {
       type: "create_appointment",
-      clientName: altAppointment[3].trim(),
+      clientName: stripServiceWords(altAppointment[3].trim()),
       date: altAppointment[1].trim(),
       time: altAppointment[2].trim(),
     };

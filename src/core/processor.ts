@@ -35,7 +35,7 @@ import type {
 
 function isConfirmation(text: string): boolean {
   const t = text.trim().toLowerCase();
-  return /^(s[iì]|ok|confermo|conferma|vai|yes|certo|esatto)\.?$/i.test(t);
+  return /^(s[iì]|ok|conferm[oa]?|confermi|vai|yes|certo|esatto)\.?$/i.test(t);
 }
 
 function isRejection(text: string): boolean {

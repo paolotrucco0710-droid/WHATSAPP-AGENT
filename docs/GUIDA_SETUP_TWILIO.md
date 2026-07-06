@@ -157,11 +157,8 @@ Nella dashboard Railway/Render, sezione **Variables** / **Environment**, aggiung
 | `OPENAI_API_KEY` | `sk-...` | Consigliata |
 | `OPENAI_MODEL` | `gpt-4o-mini` | No (default ok) |
 | `NODE_ENV` | `production` | Sì |
-| `BARBER_ALLOWLIST` | `+393331112233` (numero del barbiere) | Consigliata |
-| `ADMIN_SECRET` | una password lunga a tua scelta | Consigliata |
-| `CONVERSATION_TIMEOUT_MINUTES` | `30` | No |
 | `DATABASE_URL` | `/app/data/flexi.db` | Sì (Railway/Render con volume) |
-| `PORT` | `3000` | Di solito automatico |
+| `PORT` | **NON impostare** — Railway lo gestisce da solo | No |
 
 ### Esempio completo
 

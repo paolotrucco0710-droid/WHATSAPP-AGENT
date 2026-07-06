@@ -50,6 +50,8 @@ if (process.env.NODE_ENV !== "production") {
 const port = Number(process.env.PORT ?? 3000);
 const hostname = process.env.HOST ?? "0.0.0.0";
 
+console.log(`[flexi] PORT=${process.env.PORT ?? "(default 3000)"} HOST=${hostname}`);
+
 serve({ fetch: app.fetch, port, hostname }, (info) => {
   console.log(`Flexi running on http://${hostname}:${info.port}`);
   if (process.env.NODE_ENV !== "production") {

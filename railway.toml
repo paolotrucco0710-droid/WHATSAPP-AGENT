@@ -4,6 +4,4 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 startCommand = "npm run railway:start"
-healthcheckPath = "/health"
-healthcheckTimeout = 120
 restartPolicyType = "ON_FAILURE"

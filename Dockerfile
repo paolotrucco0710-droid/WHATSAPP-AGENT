@@ -17,6 +17,6 @@ ENV NODE_ENV=production
 ENV DATABASE_URL=/app/data/flexi.db
 ENV HOST=0.0.0.0
 
-EXPOSE 3000
+# Non impostare PORT qui — Railway lo inietta automaticamente
 
 CMD ["npm", "run", "railway:start"]

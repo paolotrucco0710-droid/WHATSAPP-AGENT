@@ -15,6 +15,8 @@ Flexi oggi è fatto per validare: *"Un barbiere usa Flexi su WhatsApp ogni giorn
 
 ## Checklist attivazione (ordine)
 
+> **Nuovo barbiere?** Guida rapida: [`docs/ATTIVA_BARBIERE.md`](ATTIVA_BARBIERE.md)
+
 ### 1. Deploy cloud
 - [ ] Railway o Render collegato al repo GitHub `main`
 - [ ] Disco persistente su `/app/data` (il database non si resetta)
@@ -44,7 +46,7 @@ Imposta il nome con l'API admin (una volta sola):
 curl -X POST https://TUO-URL/admin/barber \
   -H "x-admin-secret: TUA_PASSWORD" \
   -H "Content-Type: application/json" \
-  -d '{"phone":"+39XXXXXXXXXX","name":"Marco","averageTime":30}'
+  -d '{"phone":"+39XXXXXXXXXX","name":"Marco","averageTime":30,"averagePrice":20}'
 ```
 Flexi dirà *"☀️ Buongiorno Marco!"* alle 8:00.
 
@@ -58,7 +60,7 @@ Flexi dirà *"☀️ Buongiorno Marco!"* alle 8:00.
 curl -X POST https://TUO-URL/admin/barber \
   -H 'Content-Type: application/json' \
   -H 'X-Admin-Secret: password-lunga' \
-  -d '{"phone":"+39BARBIERE","averageTime":30,"name":"Mario"}'
+  -d '{"phone":"+39BARBIERE","averageTime":30,"averagePrice":20,"name":"Mario"}'
 ```
 
 ### 5. Test tuoi (prima del barbiere)

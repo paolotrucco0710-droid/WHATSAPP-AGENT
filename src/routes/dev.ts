@@ -74,6 +74,7 @@ export function createDevRoutes(db: Db) {
     const body = await c.req.json<{
       barberPhone: string;
       averageTime?: number;
+      averagePrice?: number;
       clients?: Array<{ name: string; phone: string }>;
     }>();
 
@@ -83,10 +84,17 @@ export function createDevRoutes(db: Db) {
 
     const barber = await findOrCreateBarber(db, body.barberPhone);
 
+    const barberUpdates: { averageTime?: number; averagePrice?: number } = {};
     if (body.averageTime) {
+      barberUpdates.averageTime = body.averageTime;
+    }
+    if (body.averagePrice) {
+      barberUpdates.averagePrice = body.averagePrice;
+    }
+    if (Object.keys(barberUpdates).length > 0) {
       await db
         .update(barbers)
-        .set({ averageTime: body.averageTime })
+        .set(barberUpdates)
         .where(eq(barbers.id, barber.id));
     }
 

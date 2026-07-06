@@ -14,6 +14,8 @@ export const barbers = sqliteTable("barbers", {
   name: text("name"),
   /** Durata media appuntamento in minuti (es. 30, 45, 60) */
   averageTime: integer("average_time").notNull().default(30),
+  /** Prezzo medio taglio in euro (per stima guadagni nel report) */
+  averagePrice: integer("average_price").notNull().default(25),
   createdAt: text("created_at")
     .notNull()
     .default(sql`(datetime('now'))`),

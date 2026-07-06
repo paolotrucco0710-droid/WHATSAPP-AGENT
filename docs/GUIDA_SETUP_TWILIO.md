@@ -260,7 +260,7 @@ Con Twilio **non** serve configurare verify token o GET webhook. Solo POST su `/
 
 ## PASSO 6 — Pre-configurare il barbiere (opzionale)
 
-Se i tagli durano 45 minuti invece di 30, configura prima del primo messaggio.
+Se i tagli durano 45 minuti e costano 20€, configura prima del primo messaggio.
 
 Usa un tool online tipo [reqbin.com](https://reqbin.com) o la console del browser:
 
@@ -272,14 +272,20 @@ Usa un tool online tipo [reqbin.com](https://reqbin.com) o la console del browse
 ```json
 {
   "phone": "+393331112233",
+  "name": "Mario",
   "averageTime": 45,
-  "name": "Mario"
+  "averagePrice": 20
 }
 ```
 
+| Campo | Uso |
+|-------|-----|
+| `averageTime` | Durata appuntamento in minuti |
+| `averagePrice` | Prezzo medio taglio in € (stima guadagni nel report mattutino) |
+
 Il `phone` è il **numero WhatsApp del barbiere** (da cui scrive), non il numero Flexi.
 
-Se salti questo passo, Flexi crea il barbiere automaticamente al primo messaggio con `average_time` = 30 minuti.
+Se salti questo passo, Flexi crea il barbiere al primo messaggio con 30 min e 25€ di default.
 
 ---
 

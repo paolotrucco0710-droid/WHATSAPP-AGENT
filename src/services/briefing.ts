@@ -21,10 +21,12 @@ function nextDayIso(isoDate: string): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-function getConfig() {
+function getConfig(
+  averagePrice = Number(process.env.BRIEFING_AVERAGE_PRICE ?? 25),
+) {
   return {
     recoveryWeeks: Number(process.env.BRIEFING_RECOVERY_WEEKS ?? 5),
-    averagePrice: Number(process.env.BRIEFING_AVERAGE_PRICE ?? 25),
+    averagePrice,
     workStart: process.env.BRIEFING_WORK_START ?? "09:00",
     workEnd: process.env.BRIEFING_WORK_END ?? "19:00",
     maxRecovery: Number(process.env.BRIEFING_MAX_RECOVERY ?? 3),
@@ -265,8 +267,9 @@ export async function buildBriefingPlan(
   barberId: number,
   averageTime: number,
   dateInput = "oggi",
+  averagePrice = Number(process.env.BRIEFING_AVERAGE_PRICE ?? 25),
 ): Promise<BriefingPlan> {
-  const config = getConfig();
+  const config = getConfig(averagePrice);
   const date = resolveDate(dateInput);
   const items: BriefingItem[] = [];
 

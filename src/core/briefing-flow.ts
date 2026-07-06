@@ -73,6 +73,7 @@ export async function startDailyBriefing(
     barberId,
     barber.averageTime,
     dateInput,
+    barber.averagePrice,
   );
 
   if (plan.items.length === 0) {

@@ -22,6 +22,7 @@ export async function deliverMorningReport(
     phone: string;
     name: string | null;
     averageTime: number;
+    averagePrice: number;
   },
 ): Promise<boolean> {
   if (!isBarberAllowed(barber.phone)) return false;
@@ -31,6 +32,7 @@ export async function deliverMorningReport(
     barber.id,
     barber.averageTime,
     "oggi",
+    barber.averagePrice,
   );
   const message = formatMorningReport(plan, barberFirstName(barber.name));
 

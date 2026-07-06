@@ -194,6 +194,9 @@ Nella dashboard Railway/Render, sezione **Variables** / **Environment**, aggiung
 | `NODE_ENV` | `production` | Sì |
 | `DATABASE_URL` | `/app/data/flexi.db` | Sì (Railway/Render con volume) |
 | `PORT` | **NON impostare** — Railway lo gestisce da solo | No |
+| `MORNING_REPORT_ENABLED` | `true` (report alle 8:00) | No (default attivo) |
+| `MORNING_REPORT_HOUR` | `8` (ora Italia) | No |
+| `CRON_SECRET` | password per trigger manuale `/cron/morning-report` | No |
 
 ### Esempio completo
 

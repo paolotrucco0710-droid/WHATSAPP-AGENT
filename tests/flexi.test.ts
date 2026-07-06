@@ -271,8 +271,8 @@ describe("Flexi", () => {
     await completeAppointment(db, appt.id);
 
     let reply = await send("piano oggi");
-    assert.match(reply, /Piano di oggi/i);
-    assert.match(reply, /Recuperi clienti/i);
+    assert.match(reply, /Buongiorno/i);
+    assert.match(reply, /recuperare/i);
 
     const collector = await sendAll("OK");
     const texts = collector.messages.map((m) => m.text).join("\n");
@@ -302,7 +302,7 @@ describe("Flexi", () => {
     await seed();
 
     const reply = await send("azioni");
-    assert.match(reply, /Piano di oggi/i);
+    assert.match(reply, /Buongiorno/i);
   });
 
   it("parser ignora servizio nel nome appuntamento", () => {
@@ -313,6 +313,41 @@ describe("Flexi", () => {
     if (action.type === "create_appointment") {
       assert.equal(action.clientName, "Marco");
     }
+  });
+
+  it("formatMorningReport come nel mockup", async () => {
+    const { formatMorningReport } = await import("../src/services/briefing.js");
+
+    const empty = formatMorningReport(
+      {
+        date: "2026-07-06",
+        estimatedEarnings: 0,
+        averagePrice: 25,
+        items: [],
+        recoveryCount: 0,
+        noshowCount: 0,
+        slotCount: 0,
+      },
+      "Marco",
+    );
+    assert.match(empty, /Buongiorno Marco/);
+    assert.match(empty, /Nessuna azione urgente/i);
+
+    const full = formatMorningReport(
+      {
+        date: "2026-07-06",
+        estimatedEarnings: 165,
+        averagePrice: 25,
+        items: [{ id: "1" } as never],
+        recoveryCount: 2,
+        noshowCount: 1,
+        slotCount: 1,
+      },
+      "Marco Rossi",
+    );
+    assert.match(full, /recuperare fino a \+165€/);
+    assert.match(full, /🔴 2 clienti da recuperare/);
+    assert.match(full, /Scrivi OK e ti mando tutto/);
   });
 
   it("parser capisce orario con spazi e sposta senza 'a'", () => {

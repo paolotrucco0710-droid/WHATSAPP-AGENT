@@ -47,7 +47,16 @@ Scrivi "Ciao" in qualsiasi momento per rivedere gli esempi.
 
 ## Guida rapida (per te)
 
-### Ogni mattina (30 secondi)
+### Ogni mattina (automatico alle 8:00)
+Flexi invia il **report mattutino** su WhatsApp:
+- Buongiorno + nome
+- Quanto puoi recuperare oggi (€)
+- 🔴 richiami · 🟠 no-show · 🟢 slot vuoti
+- Rispondi **OK** → link pronti | **MODIFICA** → cambia messaggi
+
+Non serve scrivere nulla — arriva da solo. Puoi anche scrivere `azioni` in qualsiasi momento.
+
+### Ogni mattina (manuale)
 | Scrivi | Cosa succede |
 |--------|--------------|
 | `azioni` | Riepilogo: clienti da richiamare, no-show, buchi liberi |

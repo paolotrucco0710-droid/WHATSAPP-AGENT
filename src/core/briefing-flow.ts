@@ -7,7 +7,7 @@ import {
 import {
   buildBriefingPlan,
   formatBriefingItemMessage,
-  formatBriefingSummary,
+  formatMorningReport,
   formatCategoryMenu,
   formatClientMenu,
   getCategoryFromMenuChoice,
@@ -76,7 +76,7 @@ export async function startDailyBriefing(
   );
 
   if (plan.items.length === 0) {
-    await reply(sender, barberPhone, formatBriefingSummary(plan));
+    await reply(sender, barberPhone, formatMorningReport(plan, barber.name));
     return;
   }
 
@@ -86,7 +86,7 @@ export async function startDailyBriefing(
   };
 
   await setConversationState(db, barberId, "awaiting_briefing", context);
-  await reply(sender, barberPhone, formatBriefingSummary(plan));
+  await reply(sender, barberPhone, formatMorningReport(plan, barber.name));
 }
 
 export async function handleBriefingFlow(

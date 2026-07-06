@@ -333,43 +333,59 @@ export async function buildBriefingPlan(
   };
 }
 
-export function formatBriefingSummary(plan: BriefingPlan): string {
-  const lines = [
-    "💰 Piano di oggi",
-    "",
-    `Potresti recuperare fino a €${plan.estimatedEarnings} oggi.`,
-    "",
-    "Ecco cosa posso preparare:",
-    "",
-  ];
-
-  if (plan.recoveryCount > 0) {
-    lines.push(`1. Recuperi clienti — ${plan.recoveryCount} da richiamare`);
-  }
-  if (plan.noshowCount > 0) {
-    lines.push(`2. Promemoria no-show — ${plan.noshowCount} da contattare`);
-  }
-  if (plan.slotCount > 0) {
-    lines.push(`3. Slot vuoto — ${plan.slotCount} buco da riempire`);
-  }
+export function formatMorningReport(
+  plan: BriefingPlan,
+  barberFirstName?: string | null,
+): string {
+  const name = barberFirstName?.trim().split(/\s+/)[0] || "barbiere";
 
   if (plan.items.length === 0) {
     return [
-      "💰 Piano di oggi",
+      `☀️ Buongiorno ${name}!`,
       "",
-      "Nessuna azione urgente al momento.",
+      "Oggi nessuna azione urgente — agenda tranquilla ✅",
       "",
       "Scrivi agenda oggi per vedere la giornata.",
     ].join("\n");
   }
 
-  lines.push(
-    "",
-    "Rispondi OK e preparo i link WhatsApp pronti da inviare.",
-    "Scrivi MODIFICA per cambiare un messaggio prima di inviare.",
-  );
+  const actionLines: string[] = [];
+  if (plan.recoveryCount > 0) {
+    const label =
+      plan.recoveryCount === 1 ? "cliente da recuperare" : "clienti da recuperare";
+    actionLines.push(`🔴 ${plan.recoveryCount} ${label}`);
+  }
+  if (plan.noshowCount > 0) {
+    const label =
+      plan.noshowCount === 1 ? "promemoria no-show" : "promemoria no-show";
+    actionLines.push(`🟠 ${plan.noshowCount} ${label}`);
+  }
+  if (plan.slotCount > 0) {
+    const label =
+      plan.slotCount === 1 ? "slot vuoto da riempire" : "slot vuoti da riempire";
+    actionLines.push(`🟢 ${plan.slotCount} ${label}`);
+  }
 
-  return lines.join("\n");
+  const categoryCount = actionLines.length;
+  const actionsLabel =
+    categoryCount === 1 ? "1 azione" : `${categoryCount} azioni`;
+
+  return [
+    `☀️ Buongiorno ${name}!`,
+    "",
+    `Oggi puoi recuperare fino a +${plan.estimatedEarnings}€ 💪`,
+    "",
+    `Ti ho preparato ${actionsLabel}:`,
+    ...actionLines,
+    "",
+    "Scrivi OK e ti mando tutto 🚀",
+    "Oppure MODIFICA per cambiare qualcosa.",
+  ].join("\n");
+}
+
+/** @deprecated Usa formatMorningReport — mantenuto per compatibilità interna */
+export function formatBriefingSummary(plan: BriefingPlan): string {
+  return formatMorningReport(plan);
 }
 
 const CATEGORY_LABELS: Record<BriefingCategory, string> = {

@@ -5,6 +5,8 @@ import { createAdminRoutes } from "./routes/admin.js";
 import { createDevRoutes } from "./routes/dev.js";
 import { createTwilioRoutes } from "./routes/twilio.js";
 import { createWhatsAppRoutes } from "./routes/whatsapp.js";
+import { createCronRoutes } from "./routes/cron.js";
+import { startMorningReportScheduler } from "./core/morning-scheduler.js";
 import {
   getMessagingProvider,
 } from "./messaging/messaging-status.js";
@@ -46,6 +48,13 @@ if (provider === "twilio") {
 if (process.env.NODE_ENV !== "production") {
   app.route("/dev", createDevRoutes(db));
 }
+
+if (process.env.CRON_SECRET) {
+  app.route("/cron", createCronRoutes(db));
+  console.log("Cron: POST /cron/morning-report");
+}
+
+startMorningReportScheduler(db);
 
 const port = Number(process.env.PORT ?? 3000);
 const hostname = process.env.HOST ?? "0.0.0.0";

@@ -33,7 +33,20 @@ DATABASE_URL=/app/data/flexi.db
 BARBER_ALLOWLIST=+39XXXXXXXXXX
 ADMIN_SECRET=password-lunga
 BRIEFING_AVERAGE_PRICE=25
+MORNING_REPORT_ENABLED=true
+MORNING_REPORT_HOUR=8
+CRON_SECRET=password-cron-opzionale
 ```
+
+### 2b. Nome barbiere (per il report mattutino)
+Imposta il nome con l'API admin (una volta sola):
+```bash
+curl -X POST https://TUO-URL/admin/barber \
+  -H "x-admin-secret: TUA_PASSWORD" \
+  -H "Content-Type: application/json" \
+  -d '{"phone":"+39XXXXXXXXXX","name":"Marco","averageTime":30}'
+```
+Flexi dirà *"☀️ Buongiorno Marco!"* alle 8:00.
 
 ### 3. Twilio
 - [ ] Webhook: `https://TUO-URL/twilio/webhook` (POST)

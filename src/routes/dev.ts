@@ -5,6 +5,7 @@ import { processInbound } from "../core/processor.js";
 import { DevMessageCollector } from "../messaging/types.js";
 import { findClientsByName, createClient } from "../services/clients.js";
 import { findOrCreateBarber } from "../services/barber.js";
+import { deliverMorningReport } from "../services/morning-report.js";
 import { barbers, clients, appointments } from "../db/schema.js";
 
 export function createDevRoutes(db: Db) {
@@ -107,6 +108,19 @@ export function createDevRoutes(db: Db) {
       barberId: barber.id,
       clientsCreated: createdClients.length,
     });
+  });
+
+  /** Simula report mattutino per un barbiere */
+  app.post("/morning-report", async (c) => {
+    const body = await c.req.json<{ barberPhone: string }>();
+    if (!body.barberPhone) {
+      return c.json({ error: "barberPhone obbligatorio" }, 400);
+    }
+
+    const barber = await findOrCreateBarber(db, body.barberPhone);
+    const collector = new DevMessageCollector();
+    const sent = await deliverMorningReport(db, collector, barber);
+    return c.json({ sent, replies: collector.messages });
   });
 
   return app;

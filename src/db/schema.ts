@@ -81,7 +81,12 @@ export const conversationStates = sqliteTable("conversation_states", {
     .primaryKey()
     .references(() => barbers.id, { onDelete: "cascade" }),
   state: text("state", {
-    enum: ["idle", "awaiting_confirmation", "awaiting_client_selection"],
+    enum: [
+      "idle",
+      "awaiting_confirmation",
+      "awaiting_client_selection",
+      "awaiting_briefing",
+    ],
   })
     .notNull()
     .default("idle"),

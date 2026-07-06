@@ -20,12 +20,19 @@ Azioni possibili:
 - create_client: { type, clientName, phone? }
 - set_reminder: { type, clientName, weeksFromNow }
 - view_agenda: { type, date } — date: "oggi", "domani" o ISO
+- daily_briefing: { type, date } — piano giornaliero con link wa.me (piano oggi, cosa posso fare)
 - complete_appointment: { type, clientName } — cliente segnato come fatto/completato
 - greeting: { type } — saluti (ciao, buongiorno, come stai)
 - out_of_scope: { type, topic } — topic "earnings" per guadagni/soldi, "bulk_send" per inviare tutto in automatico
 - unknown: { type, reason? }`;
 
 /** Parser rule-based per dev senza API key */
+function stripServiceWords(text: string): string {
+  return text
+    .replace(/\s+(taglio|barba|sfumatura|rasatura)\b/gi, "")
+    .trim();
+}
+
 export function parseWithRules(text: string): FlexiAction {
   const t = text.trim();
   const lower = t.toLowerCase();
@@ -38,7 +45,12 @@ export function parseWithRules(text: string): FlexiAction {
     /quanto\s+(ho\s+)?(guadagnato|fatto|preso)/i.test(lower) ||
     /soldi|incasso/i.test(lower)
   ) {
-    return { type: "out_of_scope", topic: "earnings" };
+    return { type: "daily_briefing", date: "oggi" };
+  }
+
+  if (/^piano(\s+oggi)?$/i.test(lower) || /^cosa\s+posso\s+fare/i.test(lower) || /^briefing/i.test(lower)) {
+    const dayMatch = lower.match(/(oggi|domani)/);
+    return { type: "daily_briefing", date: dayMatch?.[1] ?? "oggi" };
   }
 
   if (/^(ok\s+)?manda\s+tutto$/i.test(lower) || /^invia\s+tutto$/i.test(lower)) {
@@ -143,7 +155,7 @@ export function parseWithRules(text: string): FlexiAction {
   if (appointmentMatch?.[1] && appointmentMatch[2] && appointmentMatch[3]) {
     return {
       type: "create_appointment",
-      clientName: appointmentMatch[1].trim(),
+      clientName: stripServiceWords(appointmentMatch[1].trim()),
       date: appointmentMatch[2].trim(),
       time: appointmentMatch[3].trim(),
     };

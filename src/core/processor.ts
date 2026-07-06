@@ -20,9 +20,12 @@ import {
 import { getInstantResponse } from "../services/responses.js";
 import { checkDuplicateAppointment } from "../services/validation.js";
 import {
-  formatAgendaMessage,
-  getAgendaForDate,
+  formatAgendaFromEntries,
+  getAgendaWithGaps,
 } from "../services/agenda.js";
+import { startDailyBriefing, handleBriefingFlow } from "../core/briefing-flow.js";
+import { barbers } from "../db/schema.js";
+import { eq } from "drizzle-orm";
 import type { InboundMessage } from "../messaging/inbound.js";
 import type { FlexiAction } from "../types/actions.js";
 import type {
@@ -108,6 +111,16 @@ export async function processInbound(
     return;
   } else if (state?.state === "awaiting_client_selection" && inbound.text) {
     await handleClientSelection(
+      db,
+      sender,
+      barber.id,
+      inbound.barberPhone,
+      inbound.text,
+      state.context,
+    );
+    return;
+  } else if (state?.state === "awaiting_briefing" && inbound.text) {
+    await handleBriefingFlow(
       db,
       sender,
       barber.id,
@@ -315,9 +328,28 @@ async function handleNewMessage(
 ) {
   const action = await parseNaturalLanguage(text);
 
+  if (action.type === "daily_briefing") {
+    await startDailyBriefing(db, sender, barberId, barberPhone, action.date);
+    return;
+  }
+
   if (action.type === "view_agenda") {
-    const items = await getAgendaForDate(db, barberId, action.date);
-    await reply(sender, barberPhone, formatAgendaMessage(action.date, items));
+    const [barber] = await db
+      .select()
+      .from(barbers)
+      .where(eq(barbers.id, barberId))
+      .limit(1);
+    const entries = await getAgendaWithGaps(
+      db,
+      barberId,
+      action.date,
+      barber?.averageTime ?? 30,
+    );
+    await reply(
+      sender,
+      barberPhone,
+      formatAgendaFromEntries(action.date, entries),
+    );
     return;
   }
 

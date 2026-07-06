@@ -33,6 +33,10 @@ export const flexiActionSchema = z.discriminatedUnion("type", [
     date: z.string().default("oggi"),
   }),
   z.object({
+    type: z.literal("daily_briefing"),
+    date: z.string().default("oggi"),
+  }),
+  z.object({
     type: z.literal("complete_appointment"),
     clientName: z.string().min(1),
   }),

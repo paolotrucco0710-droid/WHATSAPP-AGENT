@@ -5,11 +5,13 @@ import type {
   ClientSelectionContext,
   PendingConfirmationContext,
 } from "../types/actions.js";
+import type { BriefingFlowContext } from "../types/briefing.js";
 
 export type ConversationStateType =
   | "idle"
   | "awaiting_confirmation"
-  | "awaiting_client_selection";
+  | "awaiting_client_selection"
+  | "awaiting_briefing";
 
 const DEFAULT_TIMEOUT_MINUTES = 30;
 
@@ -43,7 +45,7 @@ export async function setConversationState(
   db: Db,
   barberId: number,
   state: ConversationStateType,
-  context?: PendingConfirmationContext | ClientSelectionContext,
+  context?: PendingConfirmationContext | ClientSelectionContext | BriefingFlowContext,
 ) {
   const contextJson = context ? JSON.stringify(context) : null;
   await db

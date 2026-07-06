@@ -25,9 +25,14 @@ function setupDb() {
   migrate(db, { migrationsFolder: "./drizzle" });
 }
 
-async function send(text: string) {
+async function sendAll(text: string) {
   const collector = new DevMessageCollector();
   await processInbound(db, collector, { barberPhone: BARBER, text });
+  return collector;
+}
+
+async function send(text: string) {
+  const collector = await sendAll(text);
   return collector.messages.map((m) => m.text).join("\n");
 }
 
@@ -186,5 +191,45 @@ describe("Flexi", () => {
     delete process.env.TWILIO_ACCOUNT_SID;
     delete process.env.TWILIO_AUTH_TOKEN;
     delete process.env.TWILIO_WHATSAPP_FROM;
+  });
+
+  it("piano oggi prepara briefing e link con OK", async () => {
+    setupDb();
+    await seed();
+    const { findOrCreateBarber } = await import("../src/services/barber.js");
+    const { createAppointment } = await import("../src/services/appointments.js");
+    const { completeAppointment } = await import("../src/services/appointments.js");
+    const barber = await findOrCreateBarber(db, BARBER);
+    const marco = (await findClientsByName(db, barber.id, "Marco Rossi"))[0]!;
+
+    const oldDate = new Date();
+    oldDate.setDate(oldDate.getDate() - 40);
+    const oldIso = oldDate.toISOString().split("T")[0]!;
+    const appt = await createAppointment(db, {
+      barberId: barber.id,
+      clientId: marco.id,
+      startsAt: `${oldIso}T10:00:00`,
+      durationMinutes: 30,
+    });
+    await completeAppointment(db, appt.id);
+
+    let reply = await send("piano oggi");
+    assert.match(reply, /Piano di oggi/i);
+    assert.match(reply, /Recuperi clienti/i);
+
+    const collector = await sendAll("OK");
+    const texts = collector.messages.map((m) => m.text).join("\n");
+    assert.match(texts, /Invia a Marco Rossi/i);
+    assert.ok(collector.messages.some((m) => m.waMeLink?.includes("wa.me")));
+  });
+
+  it("parser ignora servizio nel nome appuntamento", () => {
+    const action = validateAndNormalizeAction(
+      parseWithRules("Marco domani 11:30 taglio"),
+    );
+    assert.equal(action.type, "create_appointment");
+    if (action.type === "create_appointment") {
+      assert.equal(action.clientName, "Marco");
+    }
   });
 });

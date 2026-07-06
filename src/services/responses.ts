@@ -8,6 +8,7 @@ export function getInstantResponse(action: FlexiAction): string | null {
         "Ciao! Sono Flexi.",
         "",
         "Scrivimi ad esempio:",
+        "• piano oggi — link pronti per recuperare clienti",
         "• Marco domani alle 15",
         "• agenda oggi",
         "• Gianni ha annullato",
@@ -15,19 +16,16 @@ export function getInstantResponse(action: FlexiAction): string | null {
     case "out_of_scope":
       if (action.topic === "earnings") {
         return [
-          "Non tengo ancora i conti dei guadagni.",
+          "Scrivi piano oggi per vedere quanto puoi recuperare.",
           "",
-          "Posso aiutarti con:",
-          "• agenda oggi",
-          "• appuntamenti",
-          "• promemoria ai clienti",
+          "Ti preparo i link WhatsApp pronti da inviare.",
         ].join("\n");
       }
       return [
-        "Non ho messaggi pronti da mandare in automatico.",
+        "Non invio messaggi in automatico.",
         "",
-        "Dimmi un cliente e preparo un promemoria,",
-        "oppure scrivi agenda oggi.",
+        "Scrivi piano oggi per il riepilogo.",
+        "Poi rispondi OK e preparo i link pronti.",
       ].join("\n");
     case "unknown":
       if (action.reason === "pending_nothing") {

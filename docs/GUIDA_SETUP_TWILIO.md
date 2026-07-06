@@ -130,6 +130,18 @@ Deve rispondere qualcosa tipo:
 
 Se `"messaging": "not_configured"`, mancano le variabili d’ambiente (passo 4).
 
+### Railway: "Application failed to respond"
+
+Se `/health` non risponde:
+
+1. **Redeploy** dall'ultimo `main` su GitHub (include `railway.toml` + fix deploy)
+2. **Settings** → **Build** → deve usare **Dockerfile**
+3. **Deployments** → ultimo deploy → **View Logs** (cerca `tsx not found`, `Migration failed`)
+4. Variabili minime: `NODE_ENV=production`, `DATABASE_URL=/app/data/flexi.db`, `MESSAGING_PROVIDER=twilio`, `TWILIO_*`
+5. Aggiungi **Volume** su `/app/data` per il database
+
+Se nei log vedi `Flexi running on http://0.0.0.0:...` ma il browser no → **Networking** → rigenera il domain.
+
 ---
 
 ## PASSO 4 — Variabili d’ambiente

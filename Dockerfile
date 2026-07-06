@@ -11,12 +11,12 @@ RUN npm ci
 
 COPY . .
 
+RUN mkdir -p /app/data
+
 ENV NODE_ENV=production
 ENV DATABASE_URL=/app/data/flexi.db
-ENV PORT=3000
-
-RUN mkdir -p /app/data
+ENV HOST=0.0.0.0
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "npm run db:migrate && npm start"]
+CMD ["npm", "run", "railway:start"]

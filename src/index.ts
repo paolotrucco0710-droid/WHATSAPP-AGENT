@@ -48,10 +48,11 @@ if (process.env.NODE_ENV !== "production") {
 }
 
 const port = Number(process.env.PORT ?? 3000);
+const hostname = process.env.HOST ?? "0.0.0.0";
 
-serve({ fetch: app.fetch, port }, () => {
-  console.log(`Flexi running on http://localhost:${port}`);
+serve({ fetch: app.fetch, port, hostname }, (info) => {
+  console.log(`Flexi running on http://${hostname}:${info.port}`);
   if (process.env.NODE_ENV !== "production") {
-    console.log(`Dev simulator: POST http://localhost:${port}/dev/message`);
+    console.log(`Dev simulator: POST http://localhost:${info.port}/dev/message`);
   }
 });

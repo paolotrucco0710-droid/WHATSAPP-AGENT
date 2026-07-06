@@ -68,9 +68,7 @@ export function buildActionSummary(
         "Ho capito questo:",
         "",
         `• Cliente: ${name}`,
-        `• Promemoria tra ${action.weeksFromNow} settimane`,
-        "",
-        "Confermi?",
+        `• Stato richiamo automatico`,
       ].join("\n");
     case "complete_appointment":
       return [

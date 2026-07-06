@@ -19,19 +19,11 @@ import { briefingFlowContextSchema } from "../types/briefing.js";
 import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 
-function isConfirmation(text: string): boolean {
-  const t = text.trim().toLowerCase();
-  return /^(s[iì]|ok|conferm[oa]?|confermi|vai|yes|certo|esatto)\.?$/i.test(t);
-}
-
-function isRejection(text: string): boolean {
-  const t = text.trim().toLowerCase();
-  return /^(no|annulla|annullato|nop|nope)\.?$/i.test(t);
-}
-
-function isModifyRequest(text: string): boolean {
-  return /^modifica$/i.test(text.trim());
-}
+import {
+  isConfirmation,
+  isModifyRequest,
+  isRejection,
+} from "../core/confirmations.js";
 
 function parseSelectionNumber(text: string): number | null {
   const match = text.trim().match(/^(\d+)$/);
@@ -114,7 +106,7 @@ export async function handleBriefingFlow(
 
   if (isRejection(text)) {
     await resetConversationState(db, barberId);
-    await reply(sender, barberPhone, "Ok, annullato.");
+    await reply(sender, barberPhone, "👍 Ok, annullato.");
     return;
   }
 

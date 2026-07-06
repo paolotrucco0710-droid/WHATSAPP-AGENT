@@ -5,7 +5,7 @@ export function getInstantResponse(action: FlexiAction): string | null {
   switch (action.type) {
     case "greeting":
       return [
-        "Ciao! Sono Flexi.",
+        "👋 Ciao! Sono Flexi.",
         "",
         "Scrivimi ad esempio:",
         "• azioni / piano oggi — link pronti per recuperare clienti",

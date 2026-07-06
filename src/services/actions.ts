@@ -9,13 +9,16 @@ import {
   rescheduleAppointment,
 } from "./appointments.js";
 import { createClient, findClientById } from "./clients.js";
-import { sendReminder } from "../messaging/reminder.js";
 import {
   resolveDate,
   resolveTime,
   toStartsAt,
   formatDisplayDate,
 } from "../core/dates.js";
+import {
+  formatAutoRecallMessage,
+  handleRecallRequest,
+} from "./recall.js";
 import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { findScheduledAppointmentAt } from "./appointments.js";
@@ -155,28 +158,13 @@ export async function executeAction(
       if (!client) {
         return { message: "Cliente non trovato." };
       }
-      const appointment = await findNextScheduledAppointment(
+      return handleRecallRequest(
         db,
         barberId,
         resolvedClientId,
+        client.name,
+        client.phone,
       );
-      if (!appointment) {
-        return {
-          message: `Non trovo un appuntamento per ${client.name}. Salva prima l'appuntamento.`,
-        };
-      }
-      const date = appointment.startsAt.split("T")[0] ?? "";
-      const time = appointment.startsAt.split("T")[1]?.slice(0, 5) ?? "";
-      const reminder = sendReminder({
-        clientPhone: client.phone,
-        clientName: client.name,
-        appointmentDate: formatDisplayDate(date),
-        appointmentTime: time,
-      });
-      return {
-        message: reminder.text,
-        waMeLink: reminder.waMeLink,
-      };
     }
 
     case "complete_appointment": {
@@ -203,7 +191,7 @@ export async function executeAction(
       const time = appointment.startsAt.split("T")[1]?.slice(0, 5) ?? "";
       const date = appointment.startsAt.split("T")[0] ?? "";
       return {
-        message: `✅ ${client.name} segnato come fatto (${formatDisplayDate(date)} alle ${time}).`,
+        message: `✅ ${client.name} segnato come fatto (${formatDisplayDate(date)} alle ${time}).${formatAutoRecallMessage()}`,
       };
     }
 

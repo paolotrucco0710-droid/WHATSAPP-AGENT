@@ -3,7 +3,7 @@ import type { MessageSender } from "../messaging/types.js";
 import { parseNaturalLanguage } from "../llm/parser.js";
 import { findOrCreateBarber } from "../services/barber.js";
 import { isBarberAllowed } from "../services/barber-access.js";
-import { findClientsByName, findClientByPhone, findClientById } from "../services/clients.js";
+import { findClientsByName, findClientByPhone } from "../services/clients.js";
 import {
   getConversationState,
   isConversationExpired,
@@ -27,6 +27,13 @@ import {
 } from "../services/agenda.js";
 import { isWeekAgendaDate } from "../core/dates.js";
 import { startDailyBriefing, handleBriefingFlow } from "../core/briefing-flow.js";
+import {
+  isAmbiguous,
+  isConfirmation,
+  isModifyRequest,
+  isRejection,
+  MODIFY_OUT_OF_CONTEXT_MESSAGE,
+} from "../core/confirmations.js";
 import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import type { InboundMessage } from "../messaging/inbound.js";
@@ -35,21 +42,6 @@ import type {
   ClientSelectionContext,
   PendingConfirmationContext,
 } from "../types/actions.js";
-
-function isConfirmation(text: string): boolean {
-  const t = text.trim().toLowerCase();
-  return /^(s[iì]|ok|conferm[oa]?|confermi|vai|yes|certo|esatto)\.?$/i.test(t);
-}
-
-function isRejection(text: string): boolean {
-  const t = text.trim().toLowerCase();
-  return /^(no|annulla|annullato|nop|nope)\.?$/i.test(t);
-}
-
-function isAmbiguous(text: string): boolean {
-  const t = text.trim().toLowerCase();
-  return /^(forse|boh|non\s+so|vediamo)\.?$/i.test(t);
-}
 
 function parseSelectionNumber(text: string): number | null {
   const match = text.trim().match(/^(\d+)$/);
@@ -188,7 +180,7 @@ async function handleSharedContact(
     phone: contact.phone,
   };
   const summary = [
-    "Ho ricevuto il contatto:",
+    "📇 Ho ricevuto il contatto:",
     "",
     `• Nome: ${contact.name}`,
     "",
@@ -210,7 +202,7 @@ async function handleConfirmation(
 ) {
   if (isRejection(text)) {
     await resetConversationState(db, barberId);
-    await reply(sender, barberPhone, "Ok, annullato.");
+    await reply(sender, barberPhone, "👍 Ok, annullato.");
     return;
   }
 
@@ -237,14 +229,7 @@ async function handleConfirmation(
     context.resolvedClientId,
   );
   await resetConversationState(db, barberId);
-  let message = result.message;
-  if (context.action.type === "complete_appointment" && context.resolvedClientId) {
-    const client = await findClientById(db, context.resolvedClientId);
-    if (client) {
-      message += `\n\nProssimo richiamo indicativo: tra 5 settimane.\nScrivi "Ricordami ${client.name} tra 5 settimane" per un promemoria.`;
-    }
-  }
-  await reply(sender, barberPhone, message, result.waMeLink);
+  await reply(sender, barberPhone, result.message, result.waMeLink);
 }
 
 async function handleClientSelection(
@@ -257,7 +242,7 @@ async function handleClientSelection(
 ) {
   if (isRejection(text)) {
     await resetConversationState(db, barberId);
-    await reply(sender, barberPhone, "Ok, annullato.");
+    await reply(sender, barberPhone, "👍 Ok, annullato.");
     return;
   }
 
@@ -279,6 +264,17 @@ async function handleClientSelection(
   }
 
   const selected = context.candidates[choice - 1]!;
+  if (context.action.type === "set_reminder") {
+    await executeClientAction(
+      db,
+      sender,
+      barberId,
+      barberPhone,
+      context.action,
+      selected.id,
+    );
+    return;
+  }
   await proceedToConfirmation(
     db,
     sender,
@@ -322,6 +318,23 @@ async function proceedToConfirmation(
   await reply(sender, barberPhone, summary);
 }
 
+function skipsConfirmation(action: FlexiAction): boolean {
+  return action.type === "set_reminder";
+}
+
+async function executeClientAction(
+  db: Db,
+  sender: MessageSender,
+  barberId: number,
+  barberPhone: string,
+  action: FlexiAction,
+  resolvedClientId: number,
+) {
+  await resetConversationState(db, barberId);
+  const result = await executeAction(db, barberId, action, resolvedClientId);
+  await reply(sender, barberPhone, result.message, result.waMeLink);
+}
+
 async function handleNewMessage(
   db: Db,
   sender: MessageSender,
@@ -329,6 +342,11 @@ async function handleNewMessage(
   barberPhone: string,
   text: string,
 ) {
+  if (isModifyRequest(text)) {
+    await reply(sender, barberPhone, MODIFY_OUT_OF_CONTEXT_MESSAGE);
+    return;
+  }
+
   const action = await parseNaturalLanguage(text);
 
   if (action.type === "daily_briefing") {
@@ -413,15 +431,26 @@ async function handleNewMessage(
 
   if (candidates.length === 1) {
     const client = candidates[0]!;
-    await proceedToConfirmation(
-      db,
-      sender,
-      barberId,
-      barberPhone,
-      action,
-      client.id,
-      client.name,
-    );
+    if (skipsConfirmation(action)) {
+      await executeClientAction(
+        db,
+        sender,
+        barberId,
+        barberPhone,
+        action,
+        client.id,
+      );
+    } else {
+      await proceedToConfirmation(
+        db,
+        sender,
+        barberId,
+        barberPhone,
+        action,
+        client.id,
+        client.name,
+      );
+    }
     return;
   }
 

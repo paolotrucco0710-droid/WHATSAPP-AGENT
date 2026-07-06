@@ -32,7 +32,7 @@ Flexi ti chiede sempre conferma prima di salvare qualcosa.
 Dopo "azioni" rispondi OK → Flexi ti prepara i link.
 Tu tocchi il link e invii tu il messaggio (Flexi non manda nulla da solo).
 
-• Ricordami Luca tra 5 settimane → promemoria per un cliente
+• Ricordami Luca tra 5 settimane → stato richiamo (automatico dopo fatto)
 
 ━━━ RISPOSTE UTILI ━━━
 • Sì / OK / Confermi  → conferma

@@ -139,7 +139,7 @@ describe("Flexi", () => {
     assert.match(reply, /Confermi/i);
   });
 
-  it("marco fatto suggerisce richiamo", async () => {
+  it("marco fatto attiva richiamo automatico", async () => {
     setupDb();
     await seed();
 
@@ -149,7 +149,39 @@ describe("Flexi", () => {
     await send("Marco fatto");
     const reply = await send("confermo");
     assert.match(reply, /segnato come fatto/i);
-    assert.match(reply, /5 settimane/i);
+    assert.match(reply, /Richiamo automatico attivo/i);
+    assert.doesNotMatch(reply, /Ricordami/i);
+  });
+
+  it("ricordami dopo fatto senza conferma", async () => {
+    setupDb();
+    await seed();
+
+    await send("Marco oggi alle 10");
+    await send("confermo");
+    await send("Marco fatto");
+    await send("confermo");
+
+    const reply = await send("Ricordami Marco tra 5 settimane");
+    assert.match(reply, /Richiamo già attivo/i);
+    assert.doesNotMatch(reply, /Confermi/i);
+  });
+
+  it("MODIFICA fuori contesto spiega come usarlo", async () => {
+    setupDb();
+    await seed();
+
+    const reply = await send("MODIFICA");
+    assert.match(reply, /solo dopo azioni/i);
+  });
+
+  it("accetta yep e yeah come conferma", async () => {
+    setupDb();
+    await seed();
+
+    await send("Marco domani alle 11");
+    const reply = await send("yep");
+    assert.match(reply, /salvato/i);
   });
 
   it("timeout conversazione scaduta", () => {

@@ -132,7 +132,7 @@ export function formatAgendaMessage(
   }
 
   const gapSet = new Set(gaps ?? []);
-  const lines = [`Agenda ${label}:`, ""];
+  const lines = [`📅 Agenda ${label}:`, ""];
   const allTimes = new Set([
     ...items.map((i) => i.time),
     ...(gaps ?? []),
@@ -190,7 +190,7 @@ export async function getAgendaForWeek(
 }
 
 export function formatWeekAgendaMessage(days: WeekAgendaDay[]): string {
-  const lines = ["Agenda settimana:", ""];
+  const lines = ["📅 Agenda settimana:", ""];
 
   let hasAny = false;
   for (const day of days) {

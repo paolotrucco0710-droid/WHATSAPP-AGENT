@@ -271,8 +271,7 @@ Quando il test funziona, comunica al barbiere:
 1. **Il numero da salvare** (quello Flexi su Twilio)
 2. **Come usarlo:** scrive in italiano normale, es. `Luca domani alle 15`
 3. **Conferma sempre** quando Flexi chiede "Confermi?"
-4. **Nuovo cliente:** scrive `Nuovo cliente Andrea +393337778888`  
-   *(oppure condivide il contatto — vedi limitazioni sotto)*
+4. **Condividi contatti** come faresti su WhatsApp — Flexi li legge. In alternativa: `Nuovo cliente Nome +39...`
 
 Non serve spiegare comandi, login o app.
 
@@ -298,7 +297,7 @@ Non serve spiegare comandi, login o app.
 | Conferma appuntamenti | ✅ Funziona |
 | Agenda, spostamenti, cancellazioni | ✅ Funziona |
 | Promemoria con link wa.me | ✅ Funziona |
-| Contatto condiviso WhatsApp | ⚠️ Non supportato via Twilio — usa `Nuovo cliente Nome +39...` |
+| Contatto condiviso WhatsApp | ✅ Funziona — Twilio lo manda come vCard, Flexi lo legge |
 | Sandbox Twilio | ⚠️ Solo numeri che hanno fatto `join` |
 | Produzione | Serve numero WhatsApp Business approvato su Twilio |
 

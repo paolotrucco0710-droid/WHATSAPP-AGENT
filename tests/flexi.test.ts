@@ -11,6 +11,7 @@ import { isConversationExpired } from "../src/services/conversation.js";
 import { parseWithRules } from "../src/llm/parser.js";
 import { validateAndNormalizeAction } from "../src/services/validation.js";
 import { extractInboundFromTwilio } from "../src/messaging/twilio-inbound.js";
+import { parseVCard } from "../src/messaging/vcard.js";
 import { getMessagingProvider } from "../src/messaging/messaging-status.js";
 
 const TEST_DB = "./data/test-flexi.db";
@@ -176,8 +177,8 @@ describe("Flexi", () => {
     delete process.env.BARBER_ALLOWLIST;
   });
 
-  it("parser webhook Twilio da form-urlencoded", () => {
-    const messages = extractInboundFromTwilio({
+  it("parser webhook Twilio da form-urlencoded", async () => {
+    const messages = await extractInboundFromTwilio({
       From: "whatsapp:+393331112233",
       Body: "Marco domani alle 15",
       WaId: "393331112233",
@@ -186,6 +187,21 @@ describe("Flexi", () => {
     assert.equal(messages.length, 1);
     assert.equal(messages[0]!.barberPhone, "+393331112233");
     assert.equal(messages[0]!.text, "Marco domani alle 15");
+  });
+
+  it("parser vCard da contatto condiviso", () => {
+    const vcard = [
+      "BEGIN:VCARD",
+      "VERSION:3.0",
+      "FN:Andrea Bianchi",
+      "TEL;TYPE=CELL:+393337778888",
+      "END:VCARD",
+    ].join("\n");
+
+    const contact = parseVCard(vcard);
+    assert.ok(contact);
+    assert.equal(contact!.name, "Andrea Bianchi");
+    assert.equal(contact!.phone, "+393337778888");
   });
 
   it("provider twilio ha priorità se configurato", () => {

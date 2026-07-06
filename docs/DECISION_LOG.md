@@ -7,7 +7,7 @@
 | 2026-07-01 | Phone cliente = chiave interna, nome = alias | Il barbiere non scrive mai numeri |
 | 2026-07-01 | Più clienti possono avere lo stesso nome | Riflette la realtà del salone |
 | 2026-07-01 | Conferma obbligatoria prima di ogni modifica DB | Protegge da errori LLM |
-| 2026-07-06 | Piano giornaliero con link wa.me (no invio automatico) | Valore economico per barbiere senza violare V1 |
+| 2026-07-06 | Contatti condivisi via Twilio vCard | Twilio manda MediaUrl0 text/vcard, Flexi scarica e parsa |
 | 2026-07-01 | wa.me in V1, astrazione `sendReminder()` | Veloce da validare, automatizzabile in V2 |
 | 2026-07-01 | SQLite per dev, schema multi-tenant | Zero infra, pronto per Postgres |
 | 2026-07-01 | TypeScript + Hono + Drizzle | Stack minimale e tipizzato |

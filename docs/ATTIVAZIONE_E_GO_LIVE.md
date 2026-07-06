@@ -88,7 +88,7 @@ curl -X POST https://TUO-URL/admin/barber \
 | Agenda settimana | ✅ |
 | Conferma prima di salvare | ✅ |
 | Invio automatico clienti | ❌ volutamente no |
-| Contatto condiviso WhatsApp (Twilio) | ⚠️ limitato — usa `Nuovo cliente Nome +39...` |
+| Contatto condiviso WhatsApp | ✅ Funziona (Twilio invia vCard, Flexi la legge) |
 | Più barbieri stesso numero Flexi | ✅ (ogni barbiere identificato dal suo numero) |
 | Dashboard / pannello | ❌ |
 

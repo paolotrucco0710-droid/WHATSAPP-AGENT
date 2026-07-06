@@ -5,6 +5,7 @@ import { createTwilioSender } from "../messaging/twilio-sender.js";
 import {
   emptyTwimlResponse,
   extractInboundFromTwilio,
+  hasUnhandledTwilioMedia,
 } from "../messaging/twilio-inbound.js";
 import { isTwilioConfigured } from "../messaging/twilio-config.js";
 
@@ -30,7 +31,21 @@ export function createTwilioRoutes(db: Db) {
       ]),
     );
 
-    const messages = extractInboundFromTwilio(formBody);
+    const messages = await extractInboundFromTwilio(formBody);
+
+    if (hasUnhandledTwilioMedia(formBody, messages)) {
+      const from =
+        typeof formBody.From === "string"
+          ? formBody.From.replace(/^whatsapp:/i, "")
+          : "";
+      if (from) {
+        const barberPhone = from.startsWith("+") ? from : `+${from}`;
+        await sender.send(barberPhone, {
+          text: "Ho ricevuto un allegato che non riesco a leggere.\n\nPer aggiungere un cliente scrivi:\nNuovo cliente Andrea +393331234567",
+        });
+      }
+      return emptyTwimlResponse();
+    }
 
     for (const inbound of messages) {
       try {

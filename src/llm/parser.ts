@@ -27,6 +27,30 @@ Azioni possibili:
 - unknown: { type, reason? }`;
 
 /** Parser rule-based per dev senza API key */
+
+function extractTimeFromFragment(fragment: string): string | undefined {
+  const rest = fragment.trim();
+  const colon = rest.match(/(\d{1,2})[:.](\d{2})/);
+  if (colon) return `${colon[1]}:${colon[2]}`;
+  const space = rest.match(/\b(\d{1,2})\s+(\d{2})\b/);
+  if (space) return `${space[1]}:${space[2]}`;
+  const hourOnly = rest.match(/(?:alle?\s*)?(\d{1,2})\b/);
+  if (hourOnly) return hourOnly[1];
+  return undefined;
+}
+
+function extractDateAndTime(rest: string): { date: string; time?: string } {
+  const weekdayPattern =
+    /(oggi|domani|dopodomani|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato|domenica|\d{4}-\d{2}-\d{2})/i;
+  const dayMatch = rest.match(weekdayPattern);
+  const date = dayMatch?.[1] ?? rest.trim();
+  const afterDay = dayMatch
+    ? rest.slice(rest.indexOf(dayMatch[0]) + dayMatch[0].length)
+    : "";
+  const time = extractTimeFromFragment(afterDay) ?? extractTimeFromFragment(rest);
+  return { date, time };
+}
+
 function stripServiceWords(text: string): string {
   return text
     .replace(/\s+(taglio|barba|sfumatura|rasatura)\b/gi, "")
@@ -103,6 +127,7 @@ export function parseWithRules(text: string): FlexiAction {
   }
 
   const cancelMatch =
+    t.match(/^annulla(?:\s+l'?appuntamento)?\s+(?:di\s+)?([A-Za-zÀ-ÿ]+)/i) ??
     t.match(/cancella(?:\s+l'?appuntamento)?\s+(?:di\s+)?(.+)/i) ??
     t.match(/(.+?)\s+(?:ha\s+)?(?:annullato|annulla|cancellato|cancella|non\s+viene)/i);
   if (cancelMatch?.[1]) {
@@ -149,19 +174,38 @@ export function parseWithRules(text: string): FlexiAction {
     };
   }
 
-  const rescheduleMatch = t.match(
-    /(?:spost[oa])\s+(.+?)\s+(?:a|alle?)\s+(.+)/i,
-  );
+  const rescheduleMatch =
+    t.match(/(?:spost[oa])\s+(.+?)\s+(?:a|alle?)\s+(.+)/i) ??
+    t.match(
+      /(?:spost[oa])\s+(.+?)\s+(domani|dopodomani|oggi|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato|domenica|\d{4}-\d{2}-\d{2})\s*(.*)$/i,
+    );
   if (rescheduleMatch?.[1] && rescheduleMatch[2]) {
-    const rest = rescheduleMatch[2].trim();
-    const timeMatch = rest.match(/(\d{1,2}[:.]?\d{0,2})/);
-    const datePart = rest.replace(timeMatch?.[0] ?? "", "").trim() || rest;
+    const clientName = rescheduleMatch[1].trim();
+    const rest = rescheduleMatch[3]
+      ? `${rescheduleMatch[2]} ${rescheduleMatch[3]}`.trim()
+      : rescheduleMatch[2].trim();
+    const { date, time } = extractDateAndTime(rest);
     return {
       type: "reschedule_appointment",
-      clientName: rescheduleMatch[1].trim(),
-      date: datePart,
-      time: timeMatch?.[1],
+      clientName,
+      date,
+      time,
     };
+  }
+
+  const dayAppointmentMatch = t.match(
+    /^(.+?)\s+(domani|dopodomani|oggi|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato|domenica)\s+(.*)$/i,
+  );
+  if (dayAppointmentMatch?.[1] && dayAppointmentMatch[2] && dayAppointmentMatch[3]) {
+    const time = extractTimeFromFragment(dayAppointmentMatch[3]);
+    if (time) {
+      return {
+        type: "create_appointment",
+        clientName: stripServiceWords(dayAppointmentMatch[1].trim()),
+        date: dayAppointmentMatch[2].trim(),
+        time,
+      };
+    }
   }
 
   const appointmentMatch = t.match(

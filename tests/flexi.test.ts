@@ -314,4 +314,37 @@ describe("Flexi", () => {
       assert.equal(action.clientName, "Marco");
     }
   });
+
+  it("parser capisce orario con spazi e sposta senza 'a'", () => {
+    let action = validateAndNormalizeAction(
+      parseWithRules("Sposta Marco a venerdì alle 15 30"),
+    );
+    assert.equal(action.type, "reschedule_appointment");
+    if (action.type === "reschedule_appointment") {
+      assert.equal(action.time, "15:30");
+    }
+
+    action = validateAndNormalizeAction(
+      parseWithRules("Sposta Marco venerdì 15 15"),
+    );
+    assert.equal(action.type, "reschedule_appointment");
+    if (action.type === "reschedule_appointment") {
+      assert.equal(action.clientName, "Marco");
+      assert.equal(action.time, "15:15");
+    }
+
+    action = validateAndNormalizeAction(
+      parseWithRules("Marco venerdì 15 15"),
+    );
+    assert.equal(action.type, "create_appointment");
+    if (action.type === "create_appointment") {
+      assert.equal(action.time, "15:15");
+    }
+
+    action = validateAndNormalizeAction(parseWithRules("Annulla Marco martedì"));
+    assert.equal(action.type, "cancel_appointment");
+    if (action.type === "cancel_appointment") {
+      assert.equal(action.clientName, "Marco");
+    }
+  });
 });

@@ -99,6 +99,11 @@ export function resolveTime(input: string): string {
     return formatTimeRome(Number(hhmm[1]), Number(hhmm[2]));
   }
 
+  const spaceMinutes = lower.match(/^(\d{1,2})\s+(\d{2})$/);
+  if (spaceMinutes) {
+    return formatTimeRome(Number(spaceMinutes[1]), Number(spaceMinutes[2]));
+  }
+
   const hourOnly = lower.match(/(?:alle?\s*)?(\d{1,2})\b/);
   if (hourOnly) {
     let h = Number(hourOnly[1]);

@@ -130,6 +130,22 @@ Deve rispondere qualcosa tipo:
 
 Se `"messaging": "not_configured"`, mancano le variabili d’ambiente (passo 4).
 
+### Railway: clienti che spariscono dopo redeploy
+
+Se aggiungi Mamma o Gabri, poi dopo un redeploy Flexi dice **"Non trovo in rubrica"** → **manca il Volume**.
+
+Senza disco persistente, il database SQLite viene **resettato a ogni deploy**. Javier funziona, Mamma no? Probabilmente l'hai aggiunto prima del redeploy.
+
+**Fix (una volta sola):**
+
+1. Railway → servizio Flexi → tab **Volumes** (o **+ New** → **Volume**)
+2. **Mount path:** `/app/data`
+3. Conferma → Railway fa redeploy automatico
+4. Variabile `DATABASE_URL=/app/data/flexi.db` (già dovrebbe esserci)
+5. **Ri-aggiungi i clienti** (quelli precedenti sono persi)
+
+Nei log dovresti vedere `Migrations applied to /app/data/flexi.db` e `[flexi] Database: /app/data/flexi.db`.
+
 ### Railway: "Application failed to respond"
 
 Se `/health` non risponde:

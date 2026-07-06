@@ -24,7 +24,14 @@ let dbInstance: Db | null = null;
 
 export function getDb(): Db {
   if (!dbInstance) {
+    const path = getDatabasePath();
     dbInstance = createDb();
+    console.log(`[flexi] Database: ${path}`);
+    if (process.env.NODE_ENV === "production" && path === "/app/data/flexi.db") {
+      console.warn(
+        "[flexi] IMPORTANTE: monta un Volume Railway su /app/data — senza volume i clienti si perdono a ogni redeploy",
+      );
+    }
   }
   return dbInstance;
 }

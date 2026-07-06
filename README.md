@@ -113,10 +113,14 @@ Verifica: `GET https://tuo-dominio/health` → `"messaging": "twilio"` o `"meta"
 
 **Guida completa per Twilio (senza PC, solo web):** [docs/GUIDA_SETUP_TWILIO.md](docs/GUIDA_SETUP_TWILIO.md)
 
+**Cheat sheet per il barbiere:** [docs/CHEAT_SHEET_BARBIERE.md](docs/CHEAT_SHEET_BARBIERE.md)
+
+**Checklist attivazione e go-live:** [docs/ATTIVAZIONE_E_GO_LIVE.md](docs/ATTIVAZIONE_E_GO_LIVE.md)
+
 ## Roadmap
 
 1. ✅ Fondamenta: schema DB + struttura progetto
 2. ✅ Core: parser, conferma, esecuzione azioni, wa.me
 3. ✅ Simulatore dev + trust (anti-duplicati)
 4. ✅ Adapter WhatsApp (attivo con credenziali Meta)
-5. ⬜ Deploy + primo barbiere reale
+5. ⬜ Deploy + primo barbiere reale — vedi [docs/ATTIVAZIONE_E_GO_LIVE.md](docs/ATTIVAZIONE_E_GO_LIVE.md)

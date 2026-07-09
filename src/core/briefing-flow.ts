@@ -18,6 +18,11 @@ import type { BriefingFlowContext } from "../types/briefing.js";
 import { briefingFlowContextSchema } from "../types/briefing.js";
 import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import {
+  getYesterdayWinsToReport,
+  markWinsReported,
+  recordOutreachFromItems,
+} from "../services/outreach.js";
 
 import {
   isConfirmation,
@@ -77,8 +82,19 @@ export async function startDailyBriefing(
     barber.averagePrice,
   );
 
+  const yesterdayWins = await getYesterdayWinsToReport(db, barberId);
+  const report = formatMorningReport(
+    plan,
+    barber.name,
+    yesterdayWins,
+  );
+  await markWinsReported(
+    db,
+    yesterdayWins.map((w) => w.id),
+  );
+
   if (plan.items.length === 0) {
-    await reply(sender, barberPhone, formatMorningReport(plan, barber.name));
+    await reply(sender, barberPhone, report);
     return;
   }
 
@@ -88,7 +104,7 @@ export async function startDailyBriefing(
   };
 
   await setConversationState(db, barberId, "awaiting_briefing", context);
-  await reply(sender, barberPhone, formatMorningReport(plan, barber.name));
+  await reply(sender, barberPhone, report);
 }
 
 export async function handleBriefingFlow(
@@ -176,6 +192,20 @@ async function handleBriefingConfirm(
       barberPhone,
       formatBriefingItemMessage(item),
       item.waMeLink,
+    );
+  }
+
+  const [barber] = await db
+    .select()
+    .from(barbers)
+    .where(eq(barbers.id, barberId))
+    .limit(1);
+  if (barber) {
+    await recordOutreachFromItems(
+      db,
+      barberId,
+      context.plan.items,
+      barber.averagePrice,
     );
   }
 

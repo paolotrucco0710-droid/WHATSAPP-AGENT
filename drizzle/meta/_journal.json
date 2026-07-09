@@ -15,6 +15,13 @@
       "when": 1782907600000,
       "tag": "0001_barber_average_price",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1782907700000,
+      "tag": "0002_outreach_events",
+      "breakpoints": true
     }
   ]
 }

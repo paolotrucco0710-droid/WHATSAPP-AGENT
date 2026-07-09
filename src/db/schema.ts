@@ -99,6 +99,31 @@ export const conversationStates = sqliteTable("conversation_states", {
     .default(sql`(datetime('now'))`),
 });
 
+/** Suggerimenti inviati al barbiere (link wa.me) per misurare il ROI. */
+export const outreachEvents = sqliteTable(
+  "outreach_events",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    barberId: integer("barber_id")
+      .notNull()
+      .references(() => barbers.id, { onDelete: "cascade" }),
+    clientId: integer("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    category: text("category", {
+      enum: ["recovery", "slot_fill", "noshow"],
+    }).notNull(),
+    suggestedAt: text("suggested_at").notNull(),
+    wonAt: text("won_at"),
+    reportedAt: text("reported_at"),
+    earnings: integer("earnings").notNull().default(25),
+  },
+  (table) => [
+    index("outreach_barber_client_idx").on(table.barberId, table.clientId),
+    index("outreach_won_idx").on(table.barberId, table.wonAt),
+  ],
+);
+
 export const barbersRelations = relations(barbers, ({ many, one }) => ({
   clients: many(clients),
   appointments: many(appointments),
@@ -111,6 +136,7 @@ export const clientsRelations = relations(clients, ({ one, many }) => ({
     references: [barbers.id],
   }),
   appointments: many(appointments),
+  outreachEvents: many(outreachEvents),
 }));
 
 export const appointmentsRelations = relations(appointments, ({ one }) => ({
@@ -133,3 +159,14 @@ export const conversationStatesRelations = relations(
     }),
   }),
 );
+
+export const outreachEventsRelations = relations(outreachEvents, ({ one }) => ({
+  barber: one(barbers, {
+    fields: [outreachEvents.barberId],
+    references: [barbers.id],
+  }),
+  client: one(clients, {
+    fields: [outreachEvents.clientId],
+    references: [clients.id],
+  }),
+}));

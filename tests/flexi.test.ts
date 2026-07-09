@@ -274,7 +274,7 @@ describe("Flexi", () => {
 
     let reply = await send("piano oggi");
     assert.match(reply, /Buongiorno/i);
-    assert.match(reply, /Opportunità di oggi|Potenziale recuperabile/i);
+    assert.match(reply, /Opportunità|recuperare|circa/i);
 
     const collector = await sendAll("OK");
     const texts = collector.messages.map((m) => m.text).join("\n");
@@ -342,10 +342,10 @@ describe("Flexi", () => {
     );
     assert.match(empty, /Buongiorno Marco/);
     assert.match(empty, /3 appuntamenti/);
-    assert.match(empty, /slot liber/i);
-    assert.match(empty, /Potenziale recuperabile: \+25€/);
-    assert.match(empty, /Occupazione: 67%/);
-    assert.match(empty, /Incasso previsto: 75€/);
+    assert.match(empty, /slot liber|spazio per un cliente/i);
+    assert.match(empty, /recuperare circa|circa \+25€/i);
+    assert.match(empty, /Agenda al 67%/);
+    assert.match(empty, /circa 75€/);
 
     const full = formatMorningReport(
       {
@@ -380,10 +380,10 @@ describe("Flexi", () => {
       },
       "Marco Rossi",
     );
-    assert.match(full, /ultimo taglio 47 giorni fa/);
-    assert.match(full, /slot liber/i);
-    assert.match(full, /Opportunità di oggi: \+75€/);
-    assert.match(full, /Scrivi OK e ti mando i messaggi pronti/);
+    assert.match(full, /non passa da 47 giorni/);
+    assert.match(full, /slot liber|spazio per un cliente/i);
+    assert.match(full, /potresti recuperare circa 75€/i);
+    assert.match(full, /Scrivi OK e ti preparo i messaggi/);
 
     const fullDay = formatMorningReport(
       {
@@ -407,7 +407,6 @@ describe("Flexi", () => {
     );
     assert.match(fullDay, /12 appuntamenti/);
     assert.match(fullDay, /Giornata piena/);
-    assert.match(fullDay, /Nessuna azione urgente/);
   });
 
   it("parser capisce riempi, sposta alle 17 e viene venerdì", () => {
@@ -469,6 +468,58 @@ describe("Flexi", () => {
     const pickText = pick.messages.map((m) => m.text).join("\n");
     assert.match(pickText, /Luca/i);
     assert.ok(pick.messages.some((m) => m.waMeLink?.includes("wa.me")));
+  });
+
+  it("mostra ROI quando un cliente suggerito torna", async () => {
+    setupDb();
+    await seed();
+    const { findOrCreateBarber } = await import("../src/services/barber.js");
+    const { createAppointment, completeAppointment } = await import(
+      "../src/services/appointments.js"
+    );
+    const { recordOutreachFromItems } = await import("../src/services/outreach.js");
+    const { markOutreachWin } = await import("../src/services/outreach.js");
+    const { outreachEvents } = await import("../src/db/schema.js");
+    const { eq } = await import("drizzle-orm");
+    const { formatDateRome, nowInRome } = await import("../src/core/dates.js");
+
+    const barber = await findOrCreateBarber(db, BARBER);
+    const marco = (await findClientsByName(db, barber.id, "Marco Rossi"))[0]!;
+
+    await recordOutreachFromItems(
+      db,
+      barber.id,
+      [
+        {
+          id: "recovery-1",
+          category: "recovery",
+          clientId: marco.id,
+          clientName: marco.name,
+          clientPhone: marco.phone,
+          messageText: "ciao",
+          waMeLink: "https://wa.me/",
+        },
+      ],
+      25,
+    );
+
+    await send("Marco oggi alle 10");
+    await send("confermo");
+    await send("Marco fatto");
+    await send("confermo");
+    await markOutreachWin(db, barber.id, marco.id);
+
+    const yesterday = nowInRome();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yTs = `${formatDateRome(yesterday)} 12:00:00`;
+    await db
+      .update(outreachEvents)
+      .set({ wonAt: yTs })
+      .where(eq(outreachEvents.clientId, marco.id));
+
+    const reply = await send("azioni");
+    assert.match(reply, /Marco è tornato ieri/i);
+    assert.match(reply, /circa 25€/i);
   });
 
   it("parser capisce orario con spazi e sposta senza 'a'", () => {

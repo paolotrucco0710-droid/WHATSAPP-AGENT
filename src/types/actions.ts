@@ -44,6 +44,9 @@ export const flexiActionSchema = z.discriminatedUnion("type", [
     date: z.string().default("oggi"),
   }),
   z.object({
+    type: z.literal("view_results"),
+  }),
+  z.object({
     type: z.literal("complete_appointment"),
     clientName: z.string().min(1),
   }),

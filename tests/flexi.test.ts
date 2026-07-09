@@ -62,6 +62,8 @@ describe("Flexi", () => {
       ["agenda", "view_agenda"],
       ["azioni", "daily_briefing"],
       ["riempi", "fill_slot"],
+      ["risultati", "view_results"],
+      ["cosa faccio oggi", "daily_briefing"],
       ["agenda martedì", "view_agenda"],
       ["marco fatto", "complete_appointment"],
       ["gianni ha annullato", "cancel_appointment"],
@@ -520,6 +522,74 @@ describe("Flexi", () => {
     const reply = await send("azioni");
     assert.match(reply, /Marco è tornato ieri/i);
     assert.match(reply, /circa 25€/i);
+  });
+
+  it("benvenuto spiega il valore senza lista comandi", async () => {
+    setupDb();
+    await seed();
+
+    const reply = await send("Ciao");
+    assert.match(reply, /riempire buchi/i);
+    assert.match(reply, /recuperare clienti/i);
+    assert.doesNotMatch(reply, /• azioni/i);
+  });
+
+  it("risultati mostra ROI mensile", async () => {
+    setupDb();
+    await seed();
+    const { findOrCreateBarber } = await import("../src/services/barber.js");
+    const { createAppointment, completeAppointment } = await import(
+      "../src/services/appointments.js"
+    );
+    const { recordOutreachFromItems } = await import("../src/services/outreach.js");
+    const { markOutreachWin } = await import("../src/services/outreach.js");
+    const { outreachEvents } = await import("../src/db/schema.js");
+    const { eq } = await import("drizzle-orm");
+    const { formatDateRome, nowInRome } = await import("../src/core/dates.js");
+
+    const barber = await findOrCreateBarber(db, BARBER);
+    const marco = (await findClientsByName(db, barber.id, "Marco Rossi"))[0]!;
+    const luca = (await findClientsByName(db, barber.id, "Luca Rossi"))[0]!;
+
+    for (const client of [marco, luca]) {
+      await recordOutreachFromItems(
+        db,
+        barber.id,
+        [
+          {
+            id: `recovery-${client.id}`,
+            category: "recovery",
+            clientId: client.id,
+            clientName: client.name,
+            clientPhone: client.phone,
+            messageText: "ciao",
+            waMeLink: "https://wa.me/",
+          },
+        ],
+        25,
+      );
+      const today = formatDateRome(nowInRome());
+      const appt = await createAppointment(db, {
+        barberId: barber.id,
+        clientId: client.id,
+        startsAt: `${today}T10:00:00`,
+        durationMinutes: 30,
+      });
+      await completeAppointment(db, appt.id);
+      await markOutreachWin(db, barber.id, client.id);
+    }
+
+    const today = formatDateRome(nowInRome());
+    await db
+      .update(outreachEvents)
+      .set({ wonAt: `${today} 12:00:00` })
+      .where(eq(outreachEvents.barberId, barber.id));
+
+    const reply = await send("risultati");
+    assert.match(reply, /con Flexi/i);
+    assert.match(reply, /recuperato 2 clienti/i);
+    assert.match(reply, /50€/i);
+    assert.match(reply, /Marco/i);
   });
 
   it("parser capisce orario con spazi e sposta senza 'a'", () => {

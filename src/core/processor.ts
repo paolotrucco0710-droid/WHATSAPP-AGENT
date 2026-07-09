@@ -38,6 +38,11 @@ import {
 } from "../core/confirmations.js";
 import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
+import { isNewBarber, formatWelcomeMessage } from "../services/onboarding.js";
+import {
+  formatMonthlyResults,
+  getMonthlyResults,
+} from "../services/outreach.js";
 import type { InboundMessage } from "../messaging/inbound.js";
 import type { FlexiAction } from "../types/actions.js";
 import type {
@@ -364,6 +369,27 @@ async function handleNewMessage(
       barberPhone,
       action.date,
       action.time,
+    );
+    return;
+  }
+
+  if (action.type === "view_results") {
+    const results = await getMonthlyResults(db, barberId);
+    await reply(sender, barberPhone, formatMonthlyResults(results));
+    return;
+  }
+
+  if (action.type === "greeting") {
+    const [barber] = await db
+      .select()
+      .from(barbers)
+      .where(eq(barbers.id, barberId))
+      .limit(1);
+    const isNew = await isNewBarber(db, barberId);
+    await reply(
+      sender,
+      barberPhone,
+      formatWelcomeMessage(barber?.name, isNew),
     );
     return;
   }

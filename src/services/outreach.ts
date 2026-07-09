@@ -119,6 +119,111 @@ export async function markWinsReported(
   }
 }
 
+export interface MonthlyResults {
+  monthLabel: string;
+  winCount: number;
+  totalEarnings: number;
+  clients: string[];
+}
+
+function currentMonthBounds(): { start: string; end: string; label: string } {
+  const now = nowInRome();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const start = formatDateRome(new Date(y, m, 1));
+  const end = formatDateRome(new Date(y, m + 1, 0));
+  const label = now.toLocaleDateString("it-IT", {
+    month: "long",
+    timeZone: "Europe/Rome",
+  });
+  return { start, end, label };
+}
+
+export async function getMonthlyResults(
+  db: Db,
+  barberId: number,
+): Promise<MonthlyResults> {
+  const { start, end, label } = currentMonthBounds();
+
+  const rows = await db
+    .select({
+      clientName: clients.name,
+      earnings: outreachEvents.earnings,
+    })
+    .from(outreachEvents)
+    .innerJoin(clients, eq(outreachEvents.clientId, clients.id))
+    .where(
+      and(
+        eq(outreachEvents.barberId, barberId),
+        sql`${outreachEvents.wonAt} is not null`,
+        sql`date(${outreachEvents.wonAt}) >= ${start}`,
+        sql`date(${outreachEvents.wonAt}) <= ${end}`,
+      ),
+    );
+
+  const totalEarnings = rows.reduce((sum, r) => sum + r.earnings, 0);
+  const clientsSeen = new Set<string>();
+  const clientNames: string[] = [];
+  for (const row of rows) {
+    const first = row.clientName.split(/\s+/)[0] ?? row.clientName;
+    if (!clientsSeen.has(first)) {
+      clientsSeen.add(first);
+      clientNames.push(first);
+    }
+  }
+
+  return {
+    monthLabel: label,
+    winCount: rows.length,
+    totalEarnings,
+    clients: clientNames,
+  };
+}
+
+export function formatMonthlyResults(results: MonthlyResults): string {
+  const month = results.monthLabel.charAt(0).toUpperCase() + results.monthLabel.slice(1);
+
+  if (results.winCount === 0) {
+    return [
+      `📊 ${month} con Flexi`,
+      "",
+      "Per ora non ho recuperi da mostrare — stiamo iniziando.",
+      "",
+      "Scrivi cosa faccio oggi e ti aiuto a riempire buchi o richiamare clienti.",
+      "Quando un cliente torna, lo vedrai qui.",
+    ].join("\n");
+  }
+
+  const lines = [
+    `📊 ${month} con Flexi`,
+    "",
+  ];
+
+  if (results.winCount === 1) {
+    lines.push("Hai recuperato 1 cliente.");
+  } else {
+    lines.push(`Hai recuperato ${results.winCount} clienti.`);
+  }
+
+  lines.push(`Circa ${results.totalEarnings}€ in più.`);
+  lines.push("");
+
+  if (results.clients.length > 0) {
+    lines.push("Grazie a:");
+    for (const name of results.clients.slice(0, 5)) {
+      lines.push(`• ${name}`);
+    }
+    if (results.clients.length > 5) {
+      lines.push(`• ...e altri ${results.clients.length - 5}`);
+    }
+  }
+
+  lines.push("");
+  lines.push("Questo è il valore che Flexi ti porta ogni mese.");
+
+  return lines.join("\n");
+}
+
 export function formatYesterdayWins(wins: OutreachWin[]): string {
   if (wins.length === 0) return "";
 

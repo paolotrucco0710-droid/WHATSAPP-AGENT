@@ -23,6 +23,7 @@ import {
   markWinsReported,
   recordOutreachFromItems,
 } from "../services/outreach.js";
+import { isNewBarber } from "../services/onboarding.js";
 
 import {
   isConfirmation,
@@ -83,10 +84,12 @@ export async function startDailyBriefing(
   );
 
   const yesterdayWins = await getYesterdayWinsToReport(db, barberId);
+  const isFirstExperience = await isNewBarber(db, barberId);
   const report = formatMorningReport(
     plan,
     barber.name,
     yesterdayWins,
+    isFirstExperience,
   );
   await markWinsReported(
     db,

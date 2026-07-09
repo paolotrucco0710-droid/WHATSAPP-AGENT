@@ -11,6 +11,7 @@ import {
   getYesterdayWinsToReport,
   markWinsReported,
 } from "./outreach.js";
+import { isNewBarber } from "./onboarding.js";
 
 export function barberFirstName(name: string | null | undefined): string | null {
   const trimmed = name?.trim();
@@ -39,10 +40,12 @@ export async function deliverMorningReport(
     barber.averagePrice,
   );
   const yesterdayWins = await getYesterdayWinsToReport(db, barber.id);
+  const isFirstExperience = await isNewBarber(db, barber.id);
   const message = formatMorningReport(
     plan,
     barberFirstName(barber.name),
     yesterdayWins,
+    isFirstExperience,
   );
   await markWinsReported(
     db,

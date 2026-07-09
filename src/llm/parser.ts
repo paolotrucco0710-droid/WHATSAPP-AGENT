@@ -21,7 +21,8 @@ Azioni possibili:
 - create_client: { type, clientName, phone? }
 - set_reminder: { type, clientName, weeksFromNow }
 - view_agenda: { type, date } — date: "settimana", "oggi", "domani", giorno (martedì...) o ISO
-- daily_briefing: { type, date } — piano giornaliero con link wa.me (piano oggi, azioni, soldi, guadagni)
+- daily_briefing: { type, date } — piano giornaliero con link wa.me (piano oggi, azioni, cosa faccio oggi)
+- view_results: { type } — risultati mensili ROI (risultati, quanto ho recuperato)
 - complete_appointment: { type, clientName } — cliente segnato come fatto/completato
 - greeting: { type } — saluti (ciao, buongiorno, come stai)
 - out_of_scope: { type, topic } — topic "bulk_send" SOLO per inviare tutto in automatico (manda tutto)
@@ -70,8 +71,25 @@ export function parseWithRules(text: string): FlexiAction {
   }
 
   if (
+    /^risultati$/i.test(lower) ||
+    /^quanto\s+ho\s+recuperato/i.test(lower) ||
+    /recuperi\s+(del\s+)?mese/i.test(lower) ||
+    /cosa\s+mi\s+hai\s+fatto\s+guadagnare/i.test(lower)
+  ) {
+    return { type: "view_results" };
+  }
+
+  if (
     /quanto\s+(ho\s+)?(guadagnato|fatto|preso)/i.test(lower) ||
-    /soldi|incasso/i.test(lower)
+    /^soldi$/i.test(lower) ||
+    /^incasso$/i.test(lower)
+  ) {
+    return { type: "daily_briefing", date: "oggi" };
+  }
+
+  if (
+    /^cosa\s+faccio\s+oggi/i.test(lower) ||
+    /^cosa\s+devo\s+fare\s+oggi/i.test(lower)
   ) {
     return { type: "daily_briefing", date: "oggi" };
   }

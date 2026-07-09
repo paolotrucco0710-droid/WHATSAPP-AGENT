@@ -464,9 +464,15 @@ export function formatMorningReport(
   plan: BriefingPlan,
   barberFirstName?: string | null,
   yesterdayWins: Array<{ clientName: string; earnings: number }> = [],
+  isFirstExperience = false,
 ): string {
   const name = barberFirstName?.trim().split(/\s+/)[0] || "barbiere";
   const lines: string[] = [`☀️ Buongiorno ${name}!`, ""];
+
+  if (isFirstExperience) {
+    lines.push("Sono qui per aiutarti a riempire buchi e recuperare clienti.");
+    lines.push("");
+  }
 
   if (yesterdayWins.length > 0) {
     for (const win of yesterdayWins) {

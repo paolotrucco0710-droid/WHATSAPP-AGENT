@@ -4,16 +4,7 @@ import type { FlexiAction } from "../types/actions.js";
 export function getInstantResponse(action: FlexiAction): string | null {
   switch (action.type) {
     case "greeting":
-      return [
-        "👋 Ciao! Sono Flexi.",
-        "",
-        "Scrivimi ad esempio:",
-        "• azioni / piano oggi — cosa fare per guadagnare di più",
-        "• riempi — trova un buco e clienti da contattare",
-        "• Marco domani alle 15",
-        "• agenda — settimana intera",
-        "• Sposta Marco alle 17 / Cancella Marco",
-      ].join("\n");
+      return null;
     case "out_of_scope":
       if (action.topic === "earnings") {
         return [

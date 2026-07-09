@@ -41,6 +41,42 @@ export function validateAndNormalizeAction(
     return { ...action, date, time };
   }
 
+  if (action.type === "cancel_appointment") {
+    const date = action.date ? resolveDate(action.date) : undefined;
+    const time = action.time ? resolveTime(action.time) : undefined;
+    if (date && !DATE_RE.test(date)) {
+      return {
+        type: "unknown",
+        reason: "Non ho capito la data. Puoi ripetere?",
+      };
+    }
+    if (time && !TIME_RE.test(time)) {
+      return {
+        type: "unknown",
+        reason: "Non ho capito l'ora. Puoi ripetere?",
+      };
+    }
+    return { ...action, date, time };
+  }
+
+  if (action.type === "fill_slot") {
+    const date = resolveDate(action.date ?? "oggi");
+    if (!DATE_RE.test(date)) {
+      return {
+        type: "unknown",
+        reason: "Non ho capito la data. Puoi ripetere?",
+      };
+    }
+    const time = action.time ? resolveTime(action.time) : undefined;
+    if (time && !TIME_RE.test(time)) {
+      return {
+        type: "unknown",
+        reason: "Non ho capito l'ora. Puoi ripetere?",
+      };
+    }
+    return { ...action, date, time };
+  }
+
   return action;
 }
 

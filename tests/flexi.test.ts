@@ -10,6 +10,7 @@ import { findClientsByName } from "../src/services/clients.js";
 import { isConversationExpired } from "../src/services/conversation.js";
 import { parseWithRules } from "../src/llm/parser.js";
 import { validateAndNormalizeAction } from "../src/services/validation.js";
+import { resolveDate } from "../src/core/dates.js";
 import { extractInboundFromTwilio } from "../src/messaging/twilio-inbound.js";
 import { parseVCard } from "../src/messaging/vcard.js";
 import { getMessagingProvider } from "../src/messaging/messaging-status.js";
@@ -60,6 +61,7 @@ describe("Flexi", () => {
       ["agenda oggi", "view_agenda"],
       ["agenda", "view_agenda"],
       ["azioni", "daily_briefing"],
+      ["riempi", "fill_slot"],
       ["agenda martedì", "view_agenda"],
       ["marco fatto", "complete_appointment"],
       ["gianni ha annullato", "cancel_appointment"],
@@ -293,7 +295,7 @@ describe("Flexi", () => {
     assert.doesNotMatch(reply, /\d{1,2}\s+\w+\s+\d{4}/);
 
     reply = await send("agenda domani");
-    assert.match(reply, /Agenda domani/i);
+    assert.match(reply, /Domani/i);
     assert.match(reply, /Marco Rossi/i);
   });
 
@@ -327,27 +329,111 @@ describe("Flexi", () => {
         recoveryCount: 0,
         noshowCount: 0,
         slotCount: 0,
+        appointmentCount: 3,
+        gapCount: 1,
+        gapTimes: ["09:30"],
+        occupationPct: 67,
+        expectedRevenue: 75,
+        lostRevenue: 25,
+        recommendations: [],
       },
       "Marco",
     );
     assert.match(empty, /Buongiorno Marco/);
-    assert.match(empty, /Nessuna azione urgente/i);
+    assert.match(empty, /3 appuntamenti/);
+    assert.match(empty, /Occupazione: 67%/);
+    assert.match(empty, /Incasso previsto: 75€/);
 
     const full = formatMorningReport(
       {
         date: "2026-07-06",
-        estimatedEarnings: 165,
+        estimatedEarnings: 75,
         averagePrice: 25,
-        items: [{ id: "1" } as never],
-        recoveryCount: 2,
-        noshowCount: 1,
+        items: [
+          {
+            id: "recovery-1",
+            category: "recovery",
+            clientId: 1,
+            clientName: "Luca Rossi",
+            clientPhone: "+39333",
+            messageText: "ciao",
+            waMeLink: "https://wa.me/",
+            detail: "Luca Rossi — ultima visita 47 giorni fa",
+          },
+        ],
+        recoveryCount: 1,
+        noshowCount: 0,
         slotCount: 1,
+        appointmentCount: 5,
+        gapCount: 1,
+        gapTimes: ["14:30"],
+        occupationPct: 67,
+        expectedRevenue: 125,
+        lostRevenue: 25,
+        recommendations: [
+          { emoji: "📩", text: "scrivere a Luca (manca da 47 giorni)" },
+        ],
       },
       "Marco Rossi",
     );
-    assert.match(full, /recuperare fino a \+165€/);
-    assert.match(full, /🔴 2 clienti da recuperare/);
-    assert.match(full, /Scrivi OK e ti mando tutto/);
+    assert.match(full, /Luca manca da 47 giorni/);
+    assert.match(full, /buco alle 14:30/);
+    assert.match(full, /Scrivi OK e ti mando i messaggi pronti/);
+  });
+
+  it("parser capisce riempi, sposta alle 17 e viene venerdì", () => {
+    let action = validateAndNormalizeAction(parseWithRules("Riempi"));
+    assert.equal(action.type, "fill_slot");
+
+    action = validateAndNormalizeAction(parseWithRules("Sposta Marco alle 17"));
+    assert.equal(action.type, "reschedule_appointment");
+    if (action.type === "reschedule_appointment") {
+      assert.equal(action.clientName, "Marco");
+      assert.equal(action.time, "17:00");
+      assert.equal(action.date, resolveDate("oggi"));
+    }
+
+    action = validateAndNormalizeAction(parseWithRules("Gabri viene venerdì"));
+    assert.equal(action.type, "create_appointment");
+    if (action.type === "create_appointment") {
+      assert.equal(action.clientName, "Gabri");
+    }
+
+    action = validateAndNormalizeAction(parseWithRules("Cancella Marco"));
+    assert.equal(action.type, "cancel_appointment");
+    if (action.type === "cancel_appointment") {
+      assert.equal(action.clientName, "Marco");
+    }
+  });
+
+  it("riempi mostra slot e clienti da recuperare", async () => {
+    setupDb();
+    await seed();
+    const { findOrCreateBarber } = await import("../src/services/barber.js");
+    const { createAppointment, completeAppointment } = await import(
+      "../src/services/appointments.js"
+    );
+    const barber = await findOrCreateBarber(db, BARBER);
+    const luca = (await findClientsByName(db, barber.id, "Luca Rossi"))[0]!;
+
+    const oldDate = new Date();
+    oldDate.setDate(oldDate.getDate() - 40);
+    const oldIso = oldDate.toISOString().split("T")[0]!;
+    const appt = await createAppointment(db, {
+      barberId: barber.id,
+      clientId: luca.id,
+      startsAt: `${oldIso}T10:00:00`,
+      durationMinutes: 30,
+    });
+    await completeAppointment(db, appt.id);
+
+    await send("Marco oggi alle 9");
+    await send("confermo");
+
+    const reply = await send("Riempi");
+    assert.match(reply, /slot libero/i);
+    assert.match(reply, /Luca/i);
+    assert.match(reply, /giorni fa/i);
   });
 
   it("parser capisce orario con spazi e sposta senza 'a'", () => {

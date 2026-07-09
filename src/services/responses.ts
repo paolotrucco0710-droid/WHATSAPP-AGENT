@@ -8,11 +8,11 @@ export function getInstantResponse(action: FlexiAction): string | null {
         "👋 Ciao! Sono Flexi.",
         "",
         "Scrivimi ad esempio:",
-        "• azioni / piano oggi — link pronti per recuperare clienti",
+        "• azioni / piano oggi — cosa fare per guadagnare di più",
+        "• riempi — trova un buco e clienti da contattare",
         "• Marco domani alle 15",
         "• agenda — settimana intera",
-        "• agenda martedì — solo quel giorno",
-        "• Gianni ha annullato",
+        "• Sposta Marco alle 17 / Cancella Marco",
       ].join("\n");
     case "out_of_scope":
       if (action.topic === "earnings") {

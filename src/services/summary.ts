@@ -47,14 +47,21 @@ export function buildActionSummary(
       lines.push("", "Confermi?");
       return lines.join("\n");
     }
-    case "cancel_appointment":
-      return [
+    case "cancel_appointment": {
+      const lines = [
         "Ho capito questo:",
         "",
         `• Annullare l'appuntamento di ${name}`,
-        "",
-        "Confermi?",
-      ].join("\n");
+      ];
+      if (action.date) {
+        lines.push(`• Data: ${formatDisplayDate(resolveDate(action.date))}`);
+      }
+      if (action.time) {
+        lines.push(`• Ora: ${resolveTime(action.time)}`);
+      }
+      lines.push("", "Confermi?");
+      return lines.join("\n");
+    }
     case "create_client":
       return [
         "Ho capito questo:",

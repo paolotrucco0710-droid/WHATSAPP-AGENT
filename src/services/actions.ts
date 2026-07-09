@@ -5,7 +5,7 @@ import {
   completeAppointment,
   createAppointment,
   findAppointmentToComplete,
-  findNextScheduledAppointment,
+  findScheduledAppointment,
   rescheduleAppointment,
 } from "./appointments.js";
 import { createClient, findClientById } from "./clients.js";
@@ -101,11 +101,20 @@ export async function executeAction(
       if (!resolvedClientId) {
         return { message: "Cliente non trovato." };
       }
-      const appointment = await findNextScheduledAppointment(
+      const todayIso = resolveDate("oggi");
+      let appointment = await findScheduledAppointment(
         db,
         barberId,
         resolvedClientId,
+        todayIso,
       );
+      if (!appointment) {
+        appointment = await findScheduledAppointment(
+          db,
+          barberId,
+          resolvedClientId,
+        );
+      }
       if (!appointment) {
         return {
           message: `Non trovo un appuntamento attivo per ${action.clientName}.`,
@@ -130,11 +139,16 @@ export async function executeAction(
       if (!resolvedClientId) {
         return { message: "Cliente non trovato." };
       }
-      const appointment = await findNextScheduledAppointment(
-        db,
-        barberId,
-        resolvedClientId,
-      );
+      const dateIso = action.date ? resolveDate(action.date) : undefined;
+      const time = action.time ? resolveTime(action.time) : undefined;
+      const appointment =
+        (await findScheduledAppointment(
+          db,
+          barberId,
+          resolvedClientId,
+          dateIso,
+          time,
+        )) ?? (await findScheduledAppointment(db, barberId, resolvedClientId));
       if (!appointment) {
         return {
           message: `Non trovo un appuntamento attivo per ${action.clientName}.`,
@@ -142,11 +156,11 @@ export async function executeAction(
       }
       await cancelAppointment(db, appointment.id);
       const client = await findClientById(db, resolvedClientId);
-      const time =
+      const apptTime =
         appointment.startsAt.split("T")[1]?.slice(0, 5) ?? "";
-      const date = appointment.startsAt.split("T")[0] ?? "";
+      const apptDate = appointment.startsAt.split("T")[0] ?? "";
       return {
-        message: `✅ Appuntamento di ${client?.name ?? action.clientName} annullato.${time ? `\n\nHai un buco ${formatDisplayDate(date)} alle ${time}.` : ""}`,
+        message: `✅ Appuntamento di ${client?.name ?? action.clientName} annullato.${apptTime ? `\n\nHai un buco ${formatDisplayDate(apptDate)} alle ${apptTime}.` : ""}`,
       };
     }
 

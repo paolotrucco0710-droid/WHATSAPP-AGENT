@@ -16,7 +16,8 @@ Regole:
 Azioni possibili:
 - create_appointment: { type, clientName, date, time }
 - reschedule_appointment: { type, clientName, date, time? }
-- cancel_appointment: { type, clientName }
+- cancel_appointment: { type, clientName, date?, time? }
+- fill_slot: { type, date?, time? } — riempi buco libero (riempi, riempi buco)
 - create_client: { type, clientName, phone? }
 - set_reminder: { type, clientName, weeksFromNow }
 - view_agenda: { type, date } — date: "settimana", "oggi", "domani", giorno (martedì...) o ISO
@@ -61,6 +62,9 @@ export function parseWithRules(text: string): FlexiAction {
   const t = text.trim();
   const lower = t.toLowerCase();
 
+  const weekdayPattern =
+    /(oggi|domani|dopodomani|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato|domenica|\d{4}-\d{2}-\d{2})/i;
+
   if (/^(ciao|buongiorno|buonasera|salve|hey|ehi)(\s+come\s+stai)?[!.?]*$/i.test(lower)) {
     return { type: "greeting" };
   }
@@ -77,12 +81,22 @@ export function parseWithRules(text: string): FlexiAction {
     return { type: "daily_briefing", date: dayMatch?.[1] ?? "oggi" };
   }
 
+  if (/^riempi(\s+il\s+)?buco/i.test(lower) || /^riempi$/i.test(lower) || /^riempi\s+slot/i.test(lower)) {
+    const dayMatch = lower.match(weekdayPattern);
+    const timeMatch = lower.match(/alle?\s+(\d{1,2}[:.]?\d{0,2}|\d{1,2}\s+\d{2})/i);
+    const time = timeMatch?.[1]
+      ? extractTimeFromFragment(timeMatch[1])
+      : undefined;
+    return {
+      type: "fill_slot",
+      date: dayMatch?.[1] ?? "oggi",
+      time,
+    };
+  }
+
   if (/^(ok\s+)?manda\s+tutto$/i.test(lower) || /^invia\s+tutto$/i.test(lower)) {
     return { type: "out_of_scope", topic: "bulk_send" };
   }
-
-  const weekdayPattern =
-    /(oggi|domani|dopodomani|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato|domenica)/i;
 
   if (
     /^agenda(\s+settimana|\s+questa\s+settimana)?$/i.test(lower) ||
@@ -126,14 +140,57 @@ export function parseWithRules(text: string): FlexiAction {
     };
   }
 
+  const cancelWithDay =
+    t.match(
+      /^(?:annulla|cancella)(?:\s+l'?appuntamento)?\s+(?:di\s+)?([A-Za-zÀ-ÿ]+)\s+(oggi|domani|dopodomani|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato|domenica)/i,
+    ) ??
+    t.match(
+      /^(?:annulla|cancella)(?:\s+l'?appuntamento)?\s+(?:di\s+)?([A-Za-zÀ-ÿ]+)\s+alle?\s+(\d{1,2}[:.]?\d{0,2}|\d{1,2}\s+\d{2})/i,
+    );
+  if (cancelWithDay?.[1] && cancelWithDay[2]) {
+    const isDay = weekdayPattern.test(cancelWithDay[2]);
+    return {
+      type: "cancel_appointment",
+      clientName: cancelWithDay[1].trim(),
+      date: isDay ? cancelWithDay[2] : undefined,
+      time: isDay ? undefined : extractTimeFromFragment(cancelWithDay[2]),
+    };
+  }
+
   const cancelMatch =
     t.match(/^annulla(?:\s+l'?appuntamento)?\s+(?:di\s+)?([A-Za-zÀ-ÿ]+)/i) ??
-    t.match(/cancella(?:\s+l'?appuntamento)?\s+(?:di\s+)?(.+)/i) ??
+    t.match(/^cancella(?:\s+l'?appuntamento)?\s+(?:di\s+)?([A-Za-zÀ-ÿ]+)/i) ??
     t.match(/(.+?)\s+(?:ha\s+)?(?:annullato|annulla|cancellato|cancella|non\s+viene)/i);
   if (cancelMatch?.[1]) {
     return {
       type: "cancel_appointment",
       clientName: cancelMatch[1].replace(/^(?:che\s+)?/i, "").trim(),
+    };
+  }
+
+  const spostaTimeOnly = t.match(
+    /^spost[oa]\s+(.+?)\s+alle?\s+(\d{1,2}[:.]?\d{0,2}|\d{1,2}\s+\d{2})\s*$/i,
+  );
+  if (spostaTimeOnly?.[1] && spostaTimeOnly[2]) {
+    return {
+      type: "reschedule_appointment",
+      clientName: spostaTimeOnly[1].trim(),
+      date: "oggi",
+      time: extractTimeFromFragment(spostaTimeOnly[2]),
+    };
+  }
+
+  const vieneMatch = t.match(
+    /^(.+?)\s+viene\s+(oggi|domani|dopodomani|luned[iì]|marted[iì]|mercoled[iì]|gioved[iì]|venerd[iì]|sabato|domenica)(?:\s+(.*))?$/i,
+  );
+  if (vieneMatch?.[1] && vieneMatch[2]) {
+    const time =
+      extractTimeFromFragment(vieneMatch[3] ?? "") ?? "10:00";
+    return {
+      type: "create_appointment",
+      clientName: stripServiceWords(vieneMatch[1].trim()),
+      date: vieneMatch[2].trim(),
+      time,
     };
   }
 

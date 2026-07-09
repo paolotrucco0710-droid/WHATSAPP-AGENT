@@ -1,8 +1,9 @@
 import { and, eq, gte, lt, asc } from "drizzle-orm";
 import type { Db } from "../db/index.js";
 import { appointments, clients } from "../db/schema.js";
-import { resolveDate, formatAgendaDayLabel, getWeekDateRange } from "../core/dates.js";
+import { formatAgendaDayLabel, getWeekDateRange, resolveDate } from "../core/dates.js";
 import { findEmptySlots } from "./briefing.js";
+import { getDayStats, type DayStats } from "./day-stats.js";
 
 function nextDayIso(isoDate: string): string {
   const [y, m, d] = isoDate.split("-").map(Number);
@@ -123,6 +124,10 @@ export function formatAgendaMessage(
   dateInput: string,
   items: AgendaItem[],
   gaps?: string[],
+  stats?: Pick<
+    DayStats,
+    "occupationPct" | "expectedRevenue" | "lostRevenue"
+  >,
 ): string {
   const isoDate = resolveDate(dateInput);
   const label = formatAgendaDayLabel(dateInput, isoDate);
@@ -132,7 +137,7 @@ export function formatAgendaMessage(
   }
 
   const gapSet = new Set(gaps ?? []);
-  const lines = [`📅 Agenda ${label}:`, ""];
+  const lines = [`📅 ${label.charAt(0).toUpperCase() + label.slice(1)}`, ""];
   const allTimes = new Set([
     ...items.map((i) => i.time),
     ...(gaps ?? []),
@@ -140,7 +145,8 @@ export function formatAgendaMessage(
 
   for (const time of [...allTimes].sort()) {
     if (gapSet.has(time)) {
-      lines.push(`🟢 ${time} buco libero`);
+      lines.push(`${time} LIBERO ⚠️`);
+      continue;
     }
     const item = items.find((i) => i.time === time);
     if (item) {
@@ -149,8 +155,22 @@ export function formatAgendaMessage(
           ? "✅"
           : item.status === "cancelled"
             ? "❌"
-            : "•";
-      lines.push(`${icon} ${item.time} ${item.clientName}`);
+            : "";
+      const prefix = icon ? `${time} ${item.clientName} ${icon}` : `${time} ${item.clientName}`;
+      lines.push(prefix);
+    }
+  }
+
+  if (stats) {
+    lines.push("");
+    lines.push(`Occupazione giornata:`);
+    lines.push(`${stats.occupationPct}%`);
+    lines.push("");
+    lines.push(`Incasso previsto:`);
+    lines.push(`${stats.expectedRevenue} €`);
+    if (stats.lostRevenue > 0) {
+      lines.push("");
+      lines.push(`Possibile incasso perso: ${stats.lostRevenue} €`);
     }
   }
 
@@ -240,11 +260,15 @@ export function formatWeekAgendaMessage(days: WeekAgendaDay[]): string {
 export function formatAgendaFromEntries(
   dateInput: string,
   entries: AgendaEntry[],
+  stats?: Pick<
+    DayStats,
+    "occupationPct" | "expectedRevenue" | "lostRevenue"
+  >,
 ): string {
   const items = entries
     .filter((e): e is { type: "appointment" } & AgendaItem => e.type === "appointment");
   const gaps = entries
     .filter((e): e is { type: "gap" } & AgendaGap => e.type === "gap")
     .map((e) => e.time);
-  return formatAgendaMessage(dateInput, items, gaps);
+  return formatAgendaMessage(dateInput, items, gaps, stats);
 }

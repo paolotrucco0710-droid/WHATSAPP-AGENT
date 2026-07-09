@@ -17,6 +17,13 @@ export const flexiActionSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("cancel_appointment"),
     clientName: z.string().min(1),
+    date: z.string().optional(),
+    time: z.string().optional(),
+  }),
+  z.object({
+    type: z.literal("fill_slot"),
+    date: z.string().default("oggi"),
+    time: z.string().optional(),
   }),
   z.object({
     type: z.literal("create_client"),

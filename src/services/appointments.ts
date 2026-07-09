@@ -22,6 +22,45 @@ export async function findNextScheduledAppointment(
   return appointment ?? null;
 }
 
+/** Cerca appuntamento programmato, opzionalmente filtrato per data/ora. */
+export async function findScheduledAppointment(
+  db: Db,
+  barberId: number,
+  clientId: number,
+  dateIso?: string,
+  time?: string,
+) {
+  const conditions = [
+    eq(appointments.barberId, barberId),
+    eq(appointments.clientId, clientId),
+    eq(appointments.status, "scheduled"),
+  ];
+
+  const rows = await db
+    .select()
+    .from(appointments)
+    .where(and(...conditions))
+    .orderBy(asc(appointments.startsAt));
+
+  if (!dateIso && !time) {
+    return rows[0] ?? null;
+  }
+
+  if (dateIso && time) {
+    const target = `${dateIso}T${time}:00`;
+    return rows.find((a) => a.startsAt.startsWith(target.slice(0, 16))) ?? null;
+  }
+
+  if (dateIso) {
+    return rows.find((a) => a.startsAt.startsWith(dateIso)) ?? null;
+  }
+
+  return rows.find((a) => {
+    const apptTime = a.startsAt.split("T")[1]?.slice(0, 5);
+    return apptTime === time;
+  }) ?? null;
+}
+
 export async function findScheduledAppointmentAt(
   db: Db,
   barberId: number,

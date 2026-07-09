@@ -26,7 +26,9 @@ import {
   getAgendaForWeek,
 } from "../services/agenda.js";
 import { isWeekAgendaDate } from "../core/dates.js";
+import { getDayStats } from "../services/day-stats.js";
 import { startDailyBriefing, handleBriefingFlow } from "../core/briefing-flow.js";
+import { startFillSlot } from "../core/fill-slot-flow.js";
 import {
   isAmbiguous,
   isConfirmation,
@@ -354,6 +356,18 @@ async function handleNewMessage(
     return;
   }
 
+  if (action.type === "fill_slot") {
+    await startFillSlot(
+      db,
+      sender,
+      barberId,
+      barberPhone,
+      action.date,
+      action.time,
+    );
+    return;
+  }
+
   if (action.type === "view_agenda") {
     const [barber] = await db
       .select()
@@ -361,6 +375,7 @@ async function handleNewMessage(
       .where(eq(barbers.id, barberId))
       .limit(1);
     const averageTime = barber?.averageTime ?? 30;
+    const averagePrice = barber?.averagePrice ?? 25;
 
     if (isWeekAgendaDate(action.date)) {
       const week = await getAgendaForWeek(db, barberId, averageTime);
@@ -374,10 +389,17 @@ async function handleNewMessage(
       action.date,
       averageTime,
     );
+    const stats = await getDayStats(
+      db,
+      barberId,
+      action.date,
+      averageTime,
+      averagePrice,
+    );
     await reply(
       sender,
       barberPhone,
-      formatAgendaFromEntries(action.date, entries),
+      formatAgendaFromEntries(action.date, entries, stats),
     );
     return;
   }

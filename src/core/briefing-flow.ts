@@ -24,6 +24,7 @@ import {
   isModifyRequest,
   isRejection,
 } from "../core/confirmations.js";
+import { handleFillSlotInBriefing } from "../core/fill-slot-flow.js";
 
 function parseSelectionNumber(text: string): number | null {
   const match = text.trim().match(/^(\d+)$/);
@@ -108,6 +109,10 @@ export async function handleBriefingFlow(
   if (isRejection(text)) {
     await resetConversationState(db, barberId);
     await reply(sender, barberPhone, "👍 Ok, annullato.");
+    return;
+  }
+
+  if (await handleFillSlotInBriefing(db, sender, barberId, barberPhone, text, rawContext)) {
     return;
   }
 

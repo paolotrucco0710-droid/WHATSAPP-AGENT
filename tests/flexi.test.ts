@@ -274,7 +274,7 @@ describe("Flexi", () => {
 
     let reply = await send("piano oggi");
     assert.match(reply, /Buongiorno/i);
-    assert.match(reply, /recuperare/i);
+    assert.match(reply, /Opportunità di oggi|Potenziale recuperabile/i);
 
     const collector = await sendAll("OK");
     const texts = collector.messages.map((m) => m.text).join("\n");
@@ -336,11 +336,14 @@ describe("Flexi", () => {
         expectedRevenue: 75,
         lostRevenue: 25,
         recommendations: [],
+        tomorrowAppointments: [],
       },
       "Marco",
     );
     assert.match(empty, /Buongiorno Marco/);
     assert.match(empty, /3 appuntamenti/);
+    assert.match(empty, /slot liber/i);
+    assert.match(empty, /Potenziale recuperabile: \+25€/);
     assert.match(empty, /Occupazione: 67%/);
     assert.match(empty, /Incasso previsto: 75€/);
 
@@ -373,12 +376,38 @@ describe("Flexi", () => {
         recommendations: [
           { emoji: "📩", text: "scrivere a Luca (manca da 47 giorni)" },
         ],
+        tomorrowAppointments: [],
       },
       "Marco Rossi",
     );
-    assert.match(full, /Luca manca da 47 giorni/);
-    assert.match(full, /buco alle 14:30/);
+    assert.match(full, /ultimo taglio 47 giorni fa/);
+    assert.match(full, /slot liber/i);
+    assert.match(full, /Opportunità di oggi: \+75€/);
     assert.match(full, /Scrivi OK e ti mando i messaggi pronti/);
+
+    const fullDay = formatMorningReport(
+      {
+        date: "2026-07-06",
+        estimatedEarnings: 0,
+        averagePrice: 25,
+        items: [],
+        recoveryCount: 0,
+        noshowCount: 0,
+        slotCount: 0,
+        appointmentCount: 12,
+        gapCount: 0,
+        gapTimes: [],
+        occupationPct: 95,
+        expectedRevenue: 300,
+        lostRevenue: 0,
+        recommendations: [],
+        tomorrowAppointments: [],
+      },
+      "Marco",
+    );
+    assert.match(fullDay, /12 appuntamenti/);
+    assert.match(fullDay, /Giornata piena/);
+    assert.match(fullDay, /Nessuna azione urgente/);
   });
 
   it("parser capisce riempi, sposta alle 17 e viene venerdì", () => {
@@ -432,8 +461,14 @@ describe("Flexi", () => {
 
     const reply = await send("Riempi");
     assert.match(reply, /slot libero/i);
-    assert.match(reply, /Luca/i);
-    assert.match(reply, /giorni fa/i);
+    assert.match(reply, /Clienti più probabili/i);
+    assert.match(reply, /1\. Luca/i);
+    assert.match(reply, /Vuoi contattarli/i);
+
+    const pick = await sendAll("1");
+    const pickText = pick.messages.map((m) => m.text).join("\n");
+    assert.match(pickText, /Luca/i);
+    assert.ok(pick.messages.some((m) => m.waMeLink?.includes("wa.me")));
   });
 
   it("parser capisce orario con spazi e sposta senza 'a'", () => {

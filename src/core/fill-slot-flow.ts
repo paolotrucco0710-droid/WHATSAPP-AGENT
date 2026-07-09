@@ -7,15 +7,14 @@ import {
 import {
   buildFillSlotPlan,
   formatBriefingItemMessage,
+  formatFillSlotClientPreview,
   formatFillSlotMessage,
 } from "../services/briefing.js";
 import { resolveDate } from "../core/dates.js";
 import type { BriefingFlowContext } from "../types/briefing.js";
 import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
-import {
-  isRejection,
-} from "../core/confirmations.js";
+import { isRejection } from "../core/confirmations.js";
 import { parseBriefingContext } from "./briefing-flow.js";
 
 async function reply(
@@ -27,8 +26,21 @@ async function reply(
   await sender.send(barberPhone, { text, waMeLink });
 }
 
+function parseSelectionNumber(text: string): number | null {
+  const match = text.trim().match(/^(\d+)$/);
+  if (!match?.[1]) return null;
+  return Number(match[1]);
+}
+
 function isSendAllRequest(text: string): boolean {
   return /^(scrivi|manda|invia)\s+a\s+tutti$/i.test(text.trim());
+}
+
+function isFillSlotContext(context: BriefingFlowContext): boolean {
+  return (
+    context.plan.items.length > 0 &&
+    context.plan.items.every((i) => i.category === "slot_fill")
+  );
 }
 
 export async function startFillSlot(
@@ -59,11 +71,7 @@ export async function startFillSlot(
   await reply(
     sender,
     barberPhone,
-    formatFillSlotMessage(
-      slotTime,
-      clients,
-      barber.averagePrice,
-    ),
+    formatFillSlotMessage(slotTime, clients, barber.averagePrice),
   );
 
   if (items.length === 0) return;
@@ -83,11 +91,12 @@ export async function startFillSlot(
     expectedRevenue: 0,
     lostRevenue: slotTime ? barber.averagePrice : 0,
     recommendations: [],
+    tomorrowAppointments: [],
   };
 
   const context: BriefingFlowContext = {
     plan,
-    step: "confirm",
+    step: "pick_client",
   };
 
   await setConversationState(db, barberId, "awaiting_briefing", context);
@@ -102,26 +111,60 @@ export async function handleFillSlotInBriefing(
   rawContext: string | null,
 ): Promise<boolean> {
   const context = parseBriefingContext(rawContext);
-  if (!context || context.plan.items.every((i) => i.category !== "slot_fill")) {
+  if (!context || !isFillSlotContext(context)) {
     return false;
   }
 
-  if (!isSendAllRequest(text)) return false;
+  if (isRejection(text)) {
+    await resetConversationState(db, barberId);
+    await reply(sender, barberPhone, "👍 Ok, annullato.");
+    return true;
+  }
 
-  for (const item of context.plan.items) {
+  if (isSendAllRequest(text)) {
+    for (const item of context.plan.items) {
+      await reply(
+        sender,
+        barberPhone,
+        formatBriefingItemMessage(item),
+        item.waMeLink,
+      );
+    }
+    await resetConversationState(db, barberId);
     await reply(
       sender,
       barberPhone,
-      formatBriefingItemMessage(item),
-      item.waMeLink,
+      "✅ Link pronti per tutti. Tocca ogni link per inviare su WhatsApp.",
     );
+    return true;
   }
 
-  await resetConversationState(db, barberId);
-  await reply(
-    sender,
-    barberPhone,
-    "✅ Link pronti per tutti. Tocca ogni link per inviare su WhatsApp.",
-  );
-  return true;
+  const choice = parseSelectionNumber(text);
+  if (choice && choice >= 1 && choice <= context.plan.items.length) {
+    const item = context.plan.items[choice - 1]!;
+    await reply(
+      sender,
+      barberPhone,
+      formatFillSlotClientPreview(item),
+      item.waMeLink,
+    );
+    await resetConversationState(db, barberId);
+    await reply(
+      sender,
+      barberPhone,
+      "✅ Tocca il link per aprire WhatsApp e inviare.",
+    );
+    return true;
+  }
+
+  if (context.step === "pick_client") {
+    await reply(
+      sender,
+      barberPhone,
+      `Rispondi con un numero da 1 a ${context.plan.items.length}, "scrivi a tutti", o Annulla.`,
+    );
+    return true;
+  }
+
+  return false;
 }

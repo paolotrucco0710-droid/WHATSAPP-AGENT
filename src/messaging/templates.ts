@@ -12,7 +12,17 @@ export function noshowMessage(
 }
 
 export function slotFillMessage(clientName: string, slotTime: string): string {
-  return `Ciao ${clientName}! Ho un buco libero oggi alle ${slotTime}. Ti va?`;
+  const first = clientName.split(/\s+/)[0] ?? clientName;
+  return `Ciao ${first}! 👋 È passato un po' dall'ultimo taglio. Ho libero oggi alle ${slotTime}, ti va di passare?`;
+}
+
+export function appointmentReminderMessage(
+  clientName: string,
+  appointmentTime: string,
+  dayLabel: string,
+): string {
+  const first = clientName.split(/\s+/)[0] ?? clientName;
+  return `Ciao ${first}! 👋 Ti ricordo l'appuntamento ${dayLabel} alle ${appointmentTime}. Ci vediamo!`;
 }
 
 export function buildBriefingWaMeLink(

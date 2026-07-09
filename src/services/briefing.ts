@@ -182,6 +182,39 @@ async function findNoshowAppointments(
     }));
 }
 
+async function findTomorrowAppointments(
+  db: Db,
+  barberId: number,
+  todayIso: string,
+  limit = 3,
+) {
+  const tomorrowIso = nextDayIso(todayIso);
+  const dayAfter = nextDayIso(tomorrowIso);
+
+  const rows = await db
+    .select({
+      clientName: clients.name,
+      startsAt: appointments.startsAt,
+    })
+    .from(appointments)
+    .innerJoin(clients, eq(appointments.clientId, clients.id))
+    .where(
+      and(
+        eq(appointments.barberId, barberId),
+        eq(appointments.status, "scheduled"),
+        gte(appointments.startsAt, `${tomorrowIso}T00:00:00`),
+        lt(appointments.startsAt, `${dayAfter}T00:00:00`),
+      ),
+    )
+    .orderBy(asc(appointments.startsAt))
+    .limit(limit);
+
+  return rows.map((r) => ({
+    clientName: r.clientName,
+    time: r.startsAt.split("T")[1]?.slice(0, 5) ?? "",
+  }));
+}
+
 export function findEmptySlots(
   booked: Array<{ start: number; end: number }>,
   workStart: string,
@@ -343,7 +376,16 @@ export async function buildBriefingPlan(
   );
   slotTimes.delete("");
 
-  const recommendations = buildRecommendations(items, dayStats);
+  const recommendations = buildRecommendations(
+    items,
+    dayStats,
+    config.averagePrice,
+  );
+  const tomorrowAppointments = await findTomorrowAppointments(
+    db,
+    barberId,
+    date,
+  );
 
   return {
     date,
@@ -360,12 +402,14 @@ export async function buildBriefingPlan(
     expectedRevenue: dayStats.expectedRevenue,
     lostRevenue: dayStats.lostRevenue,
     recommendations,
+    tomorrowAppointments,
   };
 }
 
 function buildRecommendations(
   items: BriefingItem[],
   dayStats: Awaited<ReturnType<typeof getDayStats>>,
+  averagePrice: number,
 ): BriefingRecommendation[] {
   const recs: BriefingRecommendation[] = [];
   const max = 4;
@@ -394,16 +438,9 @@ function buildRecommendations(
 
   if (dayStats.gapTimes[0] && recs.length < max) {
     const slot = dayStats.gapTimes[0];
-    const clients = items
-      .filter((i) => i.category === "slot_fill")
-      .map((i) => i.clientName);
-    const names =
-      clients.length > 0
-        ? ` — contatta ${clients.slice(0, 3).join(", ")}`
-        : "";
     recs.push({
       emoji: "🟢",
-      text: `riempire lo slot delle ${slot}${names}`,
+      text: `riempire lo slot delle ${slot} (+${averagePrice}€)`,
     });
   }
 
@@ -435,50 +472,80 @@ export function formatMorningReport(
       ? "1 appuntamento"
       : `${plan.appointmentCount} appuntamenti`;
   lines.push(`🔥 Oggi hai ${apptLabel}.`);
+  lines.push(`Incasso previsto: ${plan.expectedRevenue}€`);
+
+  const isFullDay =
+    plan.occupationPct >= 80 &&
+    plan.gapCount === 0 &&
+    plan.appointmentCount >= 4;
+  const isSparseDay =
+    plan.gapCount >= 2 ||
+    (plan.gapCount > 0 && plan.appointmentCount <= plan.gapCount);
+
+  const longLapsed = plan.items
+    .filter((i) => i.category === "recovery")
+    .filter((i) => {
+      const days = Number(i.detail?.match(/(\d+) giorni/)?.[1] ?? 0);
+      return days >= 42;
+    });
 
   if (plan.gapCount > 0) {
-    const gapLabel =
-      plan.gapCount === 1 ? "1 buco" : `${plan.gapCount} buchi`;
-    lines.push(`⚠️ Hai ${gapLabel} in agenda.`);
+    const slotLabel =
+      plan.gapCount === 1 ? "1 slot libero" : `${plan.gapCount} slot liberi`;
+    lines.push("");
+    lines.push(`🟢 Hai ${slotLabel} oggi.`);
+    if (plan.lostRevenue > 0) {
+      lines.push(`💰 Potenziale recuperabile: +${plan.lostRevenue}€`);
+    }
   }
 
-  if (plan.recoveryCount > 0) {
+  if (longLapsed.length >= 3) {
+    const potential = longLapsed.length * plan.averagePrice;
+    lines.push("");
+    lines.push(
+      `📩 ${longLapsed.length} clienti non tornano da un po'.`,
+    );
+    lines.push(`💰 Potenziale recuperabile: +${potential}€`);
+  } else if (plan.recoveryCount > 0) {
     const recoveryItems = plan.items.filter((i) => i.category === "recovery");
     const top = recoveryItems[0];
     const days = top?.detail?.match(/(\d+) giorni/)?.[1];
     if (top && days) {
       const firstName = top.clientName.split(/\s+/)[0];
-      lines.push(`⚠️ ${firstName} manca da ${days} giorni.`);
-      lines.push(`📩 Scrivigli oggi.`);
-    } else {
-      const label =
-        plan.recoveryCount === 1
-          ? "1 cliente da recuperare"
-          : `${plan.recoveryCount} clienti da recuperare`;
-      lines.push(`📩 ${label}.`);
+      lines.push("");
+      lines.push(`📩 ${firstName} — ultimo taglio ${days} giorni fa.`);
+      lines.push(`💰 Un recupero = circa +${plan.averagePrice}€`);
     }
   }
 
-  if (plan.gapTimes[0]) {
-    lines.push(`🟢 Hai un buco alle ${plan.gapTimes[0]}.`);
-    const slotClients = plan.items
-      .filter((i) => i.category === "slot_fill")
-      .map((i) => i.clientName.split(/\s+/)[0]!);
-    if (slotClients.length > 0) {
-      lines.push(`Contatta ${slotClients.join(", ")}.`);
-    }
-    if (plan.lostRevenue > 0) {
-      lines.push(
-        `💰 Se riempi quello slot guadagni circa ${plan.averagePrice}€.`,
-      );
+  if (plan.tomorrowAppointments.length > 0) {
+    const first = plan.tomorrowAppointments[0]!;
+    const firstName = first.clientName.split(/\s+/)[0];
+    lines.push("");
+    lines.push(`📅 Domani hai ${firstName} alle ${first.time}.`);
+    if (plan.tomorrowAppointments.length === 1) {
+      lines.push("Vuoi mandargli un promemoria? Scrivi OK dopo azioni.");
     }
   }
 
   lines.push("");
   lines.push(`Occupazione: ${plan.occupationPct}%`);
-  lines.push(`Incasso previsto: ${plan.expectedRevenue}€`);
-  if (plan.lostRevenue > 0) {
-    lines.push(`Possibile incasso perso: ${plan.lostRevenue}€`);
+
+  if (isFullDay && plan.items.length === 0) {
+    lines.push("");
+    lines.push("Giornata piena — continua così ✅");
+    lines.push("Nessuna azione urgente.");
+    lines.push("");
+    lines.push("Scrivi agenda oggi per il dettaglio.");
+    return lines.join("\n");
+  }
+
+  if (isSparseDay && plan.items.length === 0) {
+    lines.push("");
+    lines.push("Vuoi riempirli? Scrivi Riempi.");
+    lines.push("");
+    lines.push("Scrivi agenda oggi per il dettaglio.");
+    return lines.join("\n");
   }
 
   if (plan.recommendations.length > 0) {
@@ -491,10 +558,10 @@ export function formatMorningReport(
 
   if (plan.items.length === 0) {
     lines.push("");
-    if (plan.gapCount === 0 && plan.appointmentCount > 0) {
-      lines.push("Agenda piena — ottimo lavoro ✅");
+    if (plan.appointmentCount === 0 && plan.gapCount > 0) {
+      lines.push("Giornata libera — scrivi Riempi per trovare clienti.");
     } else if (plan.appointmentCount === 0) {
-      lines.push("Nessun appuntamento oggi — scrivi Riempi per trovare clienti.");
+      lines.push("Nessun appuntamento oggi — scrivi Riempi.");
     }
     lines.push("");
     lines.push("Scrivi agenda oggi per il dettaglio.");
@@ -503,7 +570,7 @@ export function formatMorningReport(
 
   lines.push("");
   if (plan.estimatedEarnings > 0) {
-    lines.push(`Puoi recuperare fino a +${plan.estimatedEarnings}€ 💪`);
+    lines.push(`💰 Opportunità di oggi: +${plan.estimatedEarnings}€`);
     lines.push("");
   }
   lines.push("Scrivi OK e ti mando i messaggi pronti 🚀");
@@ -639,36 +706,46 @@ export function formatFillSlotMessage(
 ): string {
   if (!slotTime) {
     return [
-      "Oggi non ho trovato buchi liberi nell'agenda.",
+      "Oggi non ho trovato slot liberi nell'agenda.",
       "",
       "Scrivi agenda oggi per vedere la giornata.",
     ].join("\n");
   }
 
   const lines = [
-    `Ho trovato uno slot libero alle ${slotTime}.`,
+    `Ho trovato uno slot libero oggi alle ${slotTime}.`,
     "",
-    "Clienti da ricontattare:",
+    "Clienti più probabili:",
     "",
   ];
 
   if (clients.length === 0) {
-    lines.push("• Nessun cliente in lista recupero al momento.");
+    lines.push("Nessun cliente in lista recupero al momento.");
     lines.push("");
     lines.push(
       "Aggiungi clienti in rubrica e segna i tagli come fatto — Flexi li ricontatterà.",
     );
   } else {
-    for (const c of clients) {
+    clients.forEach((c, i) => {
       const first = c.name.split(/\s+/)[0];
-      lines.push(`• ${first} (ultima visita ${c.daysSince} giorni fa)`);
-    }
+      lines.push(`${i + 1}. ${first} — ultimo taglio ${c.daysSince} giorni fa`);
+    });
     lines.push("");
-    lines.push(`💰 Se riempi lo slot guadagni circa ${averagePrice}€.`);
+    lines.push(`💰 Potenziale recuperabile: +${averagePrice}€`);
     lines.push("");
-    lines.push("Scrivi OK per il messaggio al primo cliente.");
+    lines.push("Vuoi contattarli?");
+    lines.push("Rispondi con il numero (es. 1).");
     lines.push('Oppure "scrivi a tutti" per tutti i link.');
   }
 
   return lines.join("\n");
+}
+
+export function formatFillSlotClientPreview(item: BriefingItem): string {
+  return [
+    "",
+    `"${item.messageText}"`,
+    "",
+    `👉 Invia a ${item.clientName}`,
+  ].join("\n");
 }

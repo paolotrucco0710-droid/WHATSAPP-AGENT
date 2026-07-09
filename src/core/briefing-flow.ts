@@ -117,6 +117,20 @@ export async function handleBriefingFlow(
   }
 
   switch (context.step) {
+    case "pick_client":
+      if (
+        await handleFillSlotInBriefing(
+          db,
+          sender,
+          barberId,
+          barberPhone,
+          text,
+          rawContext,
+        )
+      ) {
+        return;
+      }
+      break;
     case "confirm":
       await handleBriefingConfirm(db, sender, barberId, barberPhone, text, context);
       break;

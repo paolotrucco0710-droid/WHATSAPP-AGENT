@@ -45,6 +45,14 @@ export const briefingPlanSchema = z.object({
   expectedRevenue: z.number().int().nonnegative(),
   lostRevenue: z.number().int().nonnegative(),
   recommendations: z.array(briefingRecommendationSchema),
+  tomorrowAppointments: z
+    .array(
+      z.object({
+        clientName: z.string(),
+        time: z.string(),
+      }),
+    )
+    .default([]),
 });
 
 export type BriefingPlan = z.infer<typeof briefingPlanSchema>;
@@ -53,6 +61,7 @@ export const briefingFlowContextSchema = z.object({
   plan: briefingPlanSchema,
   step: z.enum([
     "confirm",
+    "pick_client",
     "modify_category",
     "modify_client",
     "modify_text",

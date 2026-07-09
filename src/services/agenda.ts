@@ -170,7 +170,7 @@ export function formatAgendaMessage(
     lines.push(`${stats.expectedRevenue} €`);
     if (stats.lostRevenue > 0) {
       lines.push("");
-      lines.push(`Possibile incasso perso: ${stats.lostRevenue} €`);
+      lines.push(`Potenziale recuperabile: +${stats.lostRevenue} €`);
     }
   }
 

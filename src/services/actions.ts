@@ -22,6 +22,7 @@ import {
 import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { findScheduledAppointmentAt } from "./appointments.js";
+import { markOutreachWin } from "./outreach.js";
 
 export interface ExecuteResult {
   message: string;
@@ -202,6 +203,7 @@ export async function executeAction(
         };
       }
       await completeAppointment(db, appointment.id);
+      await markOutreachWin(db, barberId, resolvedClientId);
       const time = appointment.startsAt.split("T")[1]?.slice(0, 5) ?? "";
       const date = appointment.startsAt.split("T")[0] ?? "";
       return {

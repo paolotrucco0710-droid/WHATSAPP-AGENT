@@ -7,6 +7,10 @@ import {
   setConversationState,
 } from "./conversation.js";
 import { buildBriefingPlan, formatMorningReport } from "./briefing.js";
+import {
+  getYesterdayWinsToReport,
+  markWinsReported,
+} from "./outreach.js";
 
 export function barberFirstName(name: string | null | undefined): string | null {
   const trimmed = name?.trim();
@@ -34,7 +38,16 @@ export async function deliverMorningReport(
     "oggi",
     barber.averagePrice,
   );
-  const message = formatMorningReport(plan, barberFirstName(barber.name));
+  const yesterdayWins = await getYesterdayWinsToReport(db, barber.id);
+  const message = formatMorningReport(
+    plan,
+    barberFirstName(barber.name),
+    yesterdayWins,
+  );
+  await markWinsReported(
+    db,
+    yesterdayWins.map((w) => w.id),
+  );
 
   if (plan.items.length > 0) {
     await setConversationState(db, barber.id, "awaiting_briefing", {

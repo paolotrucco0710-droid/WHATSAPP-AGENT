@@ -431,8 +431,8 @@ function buildRecommendations(
     recs.push({
       emoji: "📩",
       text: days
-        ? `scrivere a ${item.clientName} (manca da ${days} giorni)`
-        : `scrivere a ${item.clientName}`,
+        ? `scrivere a ${item.clientName.split(/\s+/)[0]} (non passa da ${days} giorni)`
+        : `scrivere a ${item.clientName.split(/\s+/)[0]}`,
     });
   }
 
@@ -440,7 +440,7 @@ function buildRecommendations(
     const slot = dayStats.gapTimes[0];
     recs.push({
       emoji: "🟢",
-      text: `riempire lo slot delle ${slot} (+${averagePrice}€)`,
+      text: `provare a riempire le ${slot} — circa ${averagePrice}€ in più`,
     });
   }
 
@@ -463,16 +463,26 @@ function buildRecommendations(
 export function formatMorningReport(
   plan: BriefingPlan,
   barberFirstName?: string | null,
+  yesterdayWins: Array<{ clientName: string; earnings: number }> = [],
 ): string {
   const name = barberFirstName?.trim().split(/\s+/)[0] || "barbiere";
   const lines: string[] = [`☀️ Buongiorno ${name}!`, ""];
+
+  if (yesterdayWins.length > 0) {
+    for (const win of yesterdayWins) {
+      const first = win.clientName.split(/\s+/)[0] ?? win.clientName;
+      lines.push(`✅ ${first} è tornato ieri.`);
+      lines.push(`Hai recuperato un cliente: circa ${win.earnings}€.`);
+      lines.push("");
+    }
+  }
 
   const apptLabel =
     plan.appointmentCount === 1
       ? "1 appuntamento"
       : `${plan.appointmentCount} appuntamenti`;
   lines.push(`🔥 Oggi hai ${apptLabel}.`);
-  lines.push(`Incasso previsto: ${plan.expectedRevenue}€`);
+  lines.push(`Oggi in agenda hai circa ${plan.expectedRevenue}€.`);
 
   const isFullDay =
     plan.occupationPct >= 80 &&
@@ -490,12 +500,18 @@ export function formatMorningReport(
     });
 
   if (plan.gapCount > 0) {
-    const slotLabel =
-      plan.gapCount === 1 ? "1 slot libero" : `${plan.gapCount} slot liberi`;
     lines.push("");
-    lines.push(`🟢 Hai ${slotLabel} oggi.`);
-    if (plan.lostRevenue > 0) {
-      lines.push(`💰 Potenziale recuperabile: +${plan.lostRevenue}€`);
+    if (plan.gapCount === 1) {
+      lines.push(
+        `🟢 Ho trovato spazio per un cliente in più oggi: circa +${plan.averagePrice}€.`,
+      );
+    } else {
+      lines.push(`🟢 Hai ${plan.gapCount} slot liberi oggi.`);
+      if (plan.lostRevenue > 0) {
+        lines.push(
+          `💰 Potresti recuperare circa ${plan.lostRevenue}€ riempiendo questi slot.`,
+        );
+      }
     }
   }
 
@@ -503,9 +519,9 @@ export function formatMorningReport(
     const potential = longLapsed.length * plan.averagePrice;
     lines.push("");
     lines.push(
-      `📩 ${longLapsed.length} clienti non tornano da un po'.`,
+      `📩 ${longLapsed.length} clienti non passano da un po' — vale la pena scrivergli.`,
     );
-    lines.push(`💰 Potenziale recuperabile: +${potential}€`);
+    lines.push(`💰 Se ne torna anche solo uno: circa +${potential}€.`);
   } else if (plan.recoveryCount > 0) {
     const recoveryItems = plan.items.filter((i) => i.category === "recovery");
     const top = recoveryItems[0];
@@ -513,8 +529,8 @@ export function formatMorningReport(
     if (top && days) {
       const firstName = top.clientName.split(/\s+/)[0];
       lines.push("");
-      lines.push(`📩 ${firstName} — ultimo taglio ${days} giorni fa.`);
-      lines.push(`💰 Un recupero = circa +${plan.averagePrice}€`);
+      lines.push(`📩 ${firstName} non passa da ${days} giorni.`);
+      lines.push(`Se torna, sono circa +${plan.averagePrice}€ per te.`);
     }
   }
 
@@ -529,14 +545,13 @@ export function formatMorningReport(
   }
 
   lines.push("");
-  lines.push(`Occupazione: ${plan.occupationPct}%`);
+  lines.push(`Agenda al ${plan.occupationPct}%.`);
 
   if (isFullDay && plan.items.length === 0) {
     lines.push("");
     lines.push("Giornata piena — continua così ✅");
-    lines.push("Nessuna azione urgente.");
     lines.push("");
-    lines.push("Scrivi agenda oggi per il dettaglio.");
+    lines.push("Scrivi agenda oggi se vuoi il dettaglio.");
     return lines.join("\n");
   }
 
@@ -544,7 +559,7 @@ export function formatMorningReport(
     lines.push("");
     lines.push("Vuoi riempirli? Scrivi Riempi.");
     lines.push("");
-    lines.push("Scrivi agenda oggi per il dettaglio.");
+    lines.push("Scrivi agenda oggi se vuoi il dettaglio.");
     return lines.join("\n");
   }
 
@@ -559,22 +574,24 @@ export function formatMorningReport(
   if (plan.items.length === 0) {
     lines.push("");
     if (plan.appointmentCount === 0 && plan.gapCount > 0) {
-      lines.push("Giornata libera — scrivi Riempi per trovare clienti.");
+      lines.push("Giornata libera — scrivi Riempi e ti aiuto a trovare clienti.");
     } else if (plan.appointmentCount === 0) {
       lines.push("Nessun appuntamento oggi — scrivi Riempi.");
     }
     lines.push("");
-    lines.push("Scrivi agenda oggi per il dettaglio.");
+    lines.push("Scrivi agenda oggi se vuoi il dettaglio.");
     return lines.join("\n");
   }
 
   lines.push("");
   if (plan.estimatedEarnings > 0) {
-    lines.push(`💰 Opportunità di oggi: +${plan.estimatedEarnings}€`);
+    lines.push(
+      `💰 Se segui questi consigli potresti recuperare circa ${plan.estimatedEarnings}€.`,
+    );
     lines.push("");
   }
-  lines.push("Scrivi OK e ti mando i messaggi pronti 🚀");
-  lines.push("Oppure MODIFICA per cambiare qualcosa.");
+  lines.push("Scrivi OK e ti preparo i messaggi 🚀");
+  lines.push("Oppure MODIFICA se vuoi cambiare qualcosa.");
 
   return lines.join("\n");
 }
@@ -731,7 +748,7 @@ export function formatFillSlotMessage(
       lines.push(`${i + 1}. ${first} — ultimo taglio ${c.daysSince} giorni fa`);
     });
     lines.push("");
-    lines.push(`💰 Potenziale recuperabile: +${averagePrice}€`);
+    lines.push(`💰 Se torna, sono circa +${averagePrice}€ per te.`);
     lines.push("");
     lines.push("Vuoi contattarli?");
     lines.push("Rispondi con il numero (es. 1).");

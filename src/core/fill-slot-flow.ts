@@ -16,6 +16,7 @@ import { barbers } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { isRejection } from "../core/confirmations.js";
 import { parseBriefingContext } from "./briefing-flow.js";
+import { recordOutreachFromItems } from "../services/outreach.js";
 
 async function reply(
   sender: MessageSender,
@@ -130,6 +131,19 @@ export async function handleFillSlotInBriefing(
         item.waMeLink,
       );
     }
+    const [barber] = await db
+      .select()
+      .from(barbers)
+      .where(eq(barbers.id, barberId))
+      .limit(1);
+    if (barber) {
+      await recordOutreachFromItems(
+        db,
+        barberId,
+        context.plan.items,
+        barber.averagePrice,
+      );
+    }
     await resetConversationState(db, barberId);
     await reply(
       sender,
@@ -148,6 +162,14 @@ export async function handleFillSlotInBriefing(
       formatFillSlotClientPreview(item),
       item.waMeLink,
     );
+    const [barber] = await db
+      .select()
+      .from(barbers)
+      .where(eq(barbers.id, barberId))
+      .limit(1);
+    if (barber) {
+      await recordOutreachFromItems(db, barberId, [item], barber.averagePrice);
+    }
     await resetConversationState(db, barberId);
     await reply(
       sender,
